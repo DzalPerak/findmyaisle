@@ -1,0 +1,15 @@
+vendor/** linguist-vendored
+node_modules/** linguist-vendored
+bootstrap/cache/** linguist-generated
+storage/** linguist-generated
+public/build/** linguist-generated
+public/mix-manifest.json linguist-generated
+public/hot linguist-generated
+*.iml linguist-generated
+.idea/** linguist-generated
+.vscode/** linguist-generated
+composer.lock linguist-generated
+package-lock.json linguist-generated
+yarn.lock linguist-generated
+tests/** linguist-documentation
+docs/** linguist-documentation
