@@ -6,6 +6,7 @@ import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import Pathfinder from './components/Pathfinder.vue';
+import { initFlowbite } from 'flowbite';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -24,3 +25,6 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// Initialize Flowbite components
+initFlowbite();
