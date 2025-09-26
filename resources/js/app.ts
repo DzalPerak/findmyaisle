@@ -6,11 +6,7 @@ import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import Pathfinder from './components/Pathfinder.vue';
-<<<<<<< HEAD
 import 'flowbite';
-=======
-import { initFlowbite } from 'flowbite';
->>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
