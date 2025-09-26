@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { onMounted } from "vue";
 import { Modal } from 'flowbite';
 import { useAppearance } from '@/composables/useAppearance';
@@ -37,9 +37,8 @@ let pathfindingGrid = null;
 let pathfindingScaleFactor = 1;
 let wallBuffer = 2; // Default wall buffer size
 
-// Store computed path and waypoint order
+// Store computed path and distance info
 let computedPath = [];
-let waypointOrder = [];
 let pathDistanceInfo = null;
 
 // Viewport state
@@ -47,7 +46,11 @@ let viewport = {
     x: 0,
     y: 0,
     zoom: 1,
+<<<<<<< HEAD
     minZoom: 0.01,
+=======
+    minZoom: 0.05,
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
     maxZoom: 0.5,
 };
 
@@ -66,19 +69,39 @@ let isSelectingWallPortion = false;
 let selectionStart = null;
 let selectionEnd = null;
 
-// High DPI canvas setup
-function setupHighDPICanvas(canvas, ctx) {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    ctx.scale(dpr, dpr);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+// Button state management
+let buttonStates = new Map(); // Store original button classes
+
+// Global selected button styling
+const SELECTED_BUTTON_CLASSES = "ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 shadow-lg transform scale-105";
+
+// Button management functions
+function storeButtonState(button, isSelected = false) {
+    if (!button) return;
+
+    const buttonId = button.id;
+    if (!buttonStates.has(buttonId)) {
+        // Store original classes
+        buttonStates.set(buttonId, {
+            originalClasses: button.className,
+            isSelected: false
+        });
+    }
+
+    // Update selection state
+    const state = buttonStates.get(buttonId);
+    state.isSelected = isSelected;
+
+    if (isSelected) {
+        // Apply selected styling
+        button.className = state.originalClasses + " " + SELECTED_BUTTON_CLASSES;
+    } else {
+        // Restore original styling
+        button.className = state.originalClasses;
+    }
 }
 
+<<<<<<< HEAD
 // Function to check if dark mode is active
 function isDarkMode() {
     if (appearance.value === 'dark') return true;
@@ -129,6 +152,92 @@ function showNotification(title, message, type = "info") {
             <div class="text-xs">${message}</div>
         </div>
         <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700">
+=======
+function toggleButtonSelection(buttonId, isSelected) {
+    const button = document.getElementById(buttonId);
+    storeButtonState(button, isSelected);
+}
+
+function resetAllButtonSelections() {
+    buttonStates.forEach((state, buttonId) => {
+        if (state.isSelected) {
+            toggleButtonSelection(buttonId, false);
+        }
+    });
+}
+
+// Canvas setup
+function setupCanvas(canvas, ctx) {
+    // Use fixed canvas dimensions to maintain consistent size
+    const fixedWidth = 1200;
+    const fixedHeight = 800;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Set internal canvas resolution
+    canvas.width = fixedWidth * dpr;
+    canvas.height = fixedHeight * dpr;
+
+    // Scale context for high DPI displays
+    ctx.scale(dpr, dpr);
+
+    // Set CSS size to match the fixed dimensions
+    canvas.style.width = fixedWidth + 'px';
+    canvas.style.height = fixedHeight + 'px';
+}
+
+// Flowbite notification system
+function showNotification(title, message, type = "info") {
+    let bgColor, borderColor, textColor, icon;
+
+    switch (type) {
+        case 'success':
+            bgColor = 'bg-green-100 dark:bg-green-800';
+            borderColor = 'border-green-500 dark:border-green-700';
+            textColor = 'text-green-900 dark:text-green-300';
+            icon = `<svg class="flex-shrink-0 w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+                    </svg>`;
+            break;
+        case 'error':
+            bgColor = 'bg-red-100 dark:bg-red-800';
+            borderColor = 'border-red-500 dark:border-red-700';
+            textColor = 'text-red-900 dark:text-red-300';
+            icon = `<svg class="flex-shrink-0 w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+                    </svg>`;
+            break;
+        case 'warning':
+            bgColor = 'bg-yellow-100 dark:bg-yellow-800';
+            borderColor = 'border-yellow-500 dark:border-yellow-700';
+            textColor = 'text-yellow-900 dark:text-yellow-300';
+            icon = `<svg class="flex-shrink-0 w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+                    </svg>`;
+            break;
+        default:
+            bgColor = 'bg-blue-100 dark:bg-blue-800';
+            borderColor = 'border-blue-500 dark:border-blue-700';
+            textColor = 'text-blue-900 dark:text-blue-300';
+            icon = `<svg class="flex-shrink-0 w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+                    </svg>`;
+    }
+
+    const notificationId = `toast-${Date.now()}`;
+    const notification = document.createElement("div");
+    notification.id = notificationId;
+    notification.className = `fixed top-5 right-5 z-50 flex items-center w-full max-w-xs p-4 mb-4 ${textColor} ${bgColor} rounded-lg shadow-lg`;
+    notification.innerHTML = `
+        <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 ${textColor} ${bgColor} rounded-lg">
+            ${icon}
+            <span class="sr-only">${type} icon</span>
+        </div>
+        <div class="ms-3 text-sm font-normal">
+            <div class="font-semibold">${title}</div>
+            <div class="text-xs mt-1">${message}</div>
+        </div>
+        <button type="button" class="ms-auto -mx-1.5 -my-1.5 ${bgColor} ${textColor} hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" onclick="document.getElementById('${notificationId}').remove()">
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
             <span class="sr-only">Close</span>
             <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -142,6 +251,7 @@ function showNotification(title, message, type = "info") {
         toast.remove();
     });
 
+<<<<<<< HEAD
     container.appendChild(toast);
 
     // Auto-remove after 4 seconds
@@ -172,21 +282,65 @@ function showLoadingModal(text = "Loading...") {
     
     if (loadingModalInstance) {
         loadingModalInstance.show();
+=======
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (document.getElementById(notificationId)) {
+            document.getElementById(notificationId).remove();
+        }
+    }, 5000);
+}
+
+// Flowbite loading modal system
+function showLoadingModal(text = "Loading...") {
+    const modal = document.getElementById("loadingModal");
+    const overlay = document.getElementById("modalBackdrop");
+    const loadingText = document.getElementById("loadingText");
+
+    if (loadingText) loadingText.textContent = text;
+    if (overlay) overlay.classList.remove("hidden");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
     }
 }
 
 function hideLoadingModal() {
+<<<<<<< HEAD
     if (loadingModalInstance) {
         loadingModalInstance.hide();
     }
+=======
+    const modal = document.getElementById("loadingModal");
+    const overlay = document.getElementById("modalBackdrop");
+
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+    }
+    if (overlay) overlay.classList.add("hidden");
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
 }
 
 onMounted(() => {
     canvas = document.getElementById("gridCanvas");
     ctx = canvas.getContext("2d");
-    
-    // Fix canvas resolution for high DPI displays
-    setupHighDPICanvas(canvas, ctx);
+
+    setupCanvas(canvas, ctx);
+
+    // Initialize button states - store original classes for all interactive buttons
+    const interactiveButtons = [
+        "addWpBtn", "clearWpBtn", "computePathBtn", "resetViewBtn",
+        "editModeBtn", "addWallBtn", "removeWallBtn", "cutWallBtn"
+    ];
+
+    interactiveButtons.forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            storeButtonState(button, false);
+        }
+    });
 
     document.getElementById("dxfFile").addEventListener("change", async (e) => {
         const file = e.target.files[0];
@@ -273,9 +427,7 @@ onMounted(() => {
         const waypointCount = waypoints.length;
         waypoints = [];
         computedPath = [];
-        waypointOrder = [];
         pathDistanceInfo = null;
-        console.log("All waypoints cleared");
         drawGrid();
         showNotification(
             "Waypoints Cleared",
@@ -291,12 +443,11 @@ onMounted(() => {
 
         // Regenerate the pathfinding grid with the new wall buffer
         regeneratePathfindingGrid();
-        
+
         // Clear existing path since pathfinding grid has changed
         computedPath = [];
-        waypointOrder = [];
         pathDistanceInfo = null;
-        
+
         // Redraw to update display
         drawGrid();
 
@@ -337,65 +488,65 @@ onMounted(() => {
                 // In waypoint mode, don't start dragging
                 return;
             }
-            
+
             if (isEditingMode && editingTool === 'add') {
                 // Start drawing a wall
                 const rect = canvas.getBoundingClientRect();
                 const canvasX = e.clientX - rect.left;
                 const canvasY = e.clientY - rect.top;
-                
+
                 // Account for canvas scaling
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
                 const scaledCanvasX = canvasX * scaleX;
                 const scaledCanvasY = canvasY * scaleY;
-                
+
                 // Convert to world coordinates
                 const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
                 const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
-                
+
                 currentWallStart = { x: worldX, y: worldY };
                 isDrawingWall = true;
                 return;
             }
-            
+
             if (isEditingMode && editingTool === 'remove') {
                 // Remove wall at click location
                 const rect = canvas.getBoundingClientRect();
                 const canvasX = e.clientX - rect.left;
                 const canvasY = e.clientY - rect.top;
-                
+
                 // Account for canvas scaling
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
                 const scaledCanvasX = canvasX * scaleX;
                 const scaledCanvasY = canvasY * scaleY;
-                
+
                 // Convert to world coordinates
                 const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
                 const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
-                
+
                 removeWallNear({ x: worldX, y: worldY });
                 drawGrid();
                 return;
             }
-            
+
             if (isEditingMode && editingTool === 'cut') {
                 // Start selecting wall portion to remove
                 const rect = canvas.getBoundingClientRect();
                 const canvasX = e.clientX - rect.left;
                 const canvasY = e.clientY - rect.top;
-                
+
                 // Account for canvas scaling
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
                 const scaledCanvasX = canvasX * scaleX;
                 const scaledCanvasY = canvasY * scaleY;
-                
+
                 // Convert to world coordinates
                 const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
                 const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
-                
+
                 isSelectingWallPortion = true;
                 selectionStart = { x: worldX, y: worldY };
                 selectionEnd = { x: worldX, y: worldY };
@@ -421,44 +572,44 @@ onMounted(() => {
             drawGrid();
             return;
         }
-        
+
         if (isDrawingWall && currentWallStart) {
             // Update temporary wall end point while drawing
             const rect = canvas.getBoundingClientRect();
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
-            
+
             // Account for canvas scaling
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const scaledCanvasX = canvasX * scaleX;
             const scaledCanvasY = canvasY * scaleY;
-            
+
             // Convert to world coordinates
             const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
             const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
-            
+
             tempWallEnd = { x: worldX, y: worldY };
             drawGrid();
             return;
         }
-        
+
         if (isSelectingWallPortion && selectionStart) {
             // Update selection end position
             const rect = canvas.getBoundingClientRect();
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
-            
+
             // Account for canvas scaling
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const scaledCanvasX = canvasX * scaleX;
             const scaledCanvasY = canvasY * scaleY;
-            
+
             // Convert to world coordinates
             const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
             const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
-            
+
             selectionEnd = { x: worldX, y: worldY };
             drawGrid();
             return;
@@ -491,29 +642,29 @@ onMounted(() => {
             if (isDrawingWall && currentWallStart && tempWallEnd) {
                 // Complete the wall drawing
                 addWallSegment(currentWallStart, tempWallEnd);
-                
+
                 // Reset drawing state
                 isDrawingWall = false;
                 currentWallStart = null;
                 tempWallEnd = null;
-                
+
                 drawGrid();
                 return;
             }
-            
+
             if (isSelectingWallPortion && selectionStart && selectionEnd) {
                 // Complete wall portion selection and remove
                 removeWallPortion(selectionStart, selectionEnd);
-                
+
                 // Reset selection state
                 isSelectingWallPortion = false;
                 selectionStart = null;
                 selectionEnd = null;
-                
+
                 drawGrid();
                 return;
             }
-            
+
             isDragging = false;
             if (!isAddingWaypoints && !isEditingMode) {
                 canvas.style.cursor = "grab";
@@ -572,12 +723,15 @@ onMounted(() => {
         const scaledMouseY = mouseY * scaleY;
 
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = viewport.zoom * zoomFactor;
+        let newZoom = viewport.zoom * zoomFactor;
 
-        if (newZoom >= viewport.minZoom && newZoom <= viewport.maxZoom) {
+        // Clamp zoom to min/max
+        newZoom = Math.max(viewport.minZoom, Math.min(viewport.maxZoom, newZoom));
+
+        if (newZoom !== viewport.zoom) {
             // Zoom towards mouse position
-            viewport.x = scaledMouseX - (scaledMouseX - viewport.x) * zoomFactor;
-            viewport.y = scaledMouseY - (scaledMouseY - viewport.y) * zoomFactor;
+            viewport.x = scaledMouseX - (scaledMouseX - viewport.x) * (newZoom / viewport.zoom);
+            viewport.y = scaledMouseY - (scaledMouseY - viewport.y) * (newZoom / viewport.zoom);
             viewport.zoom = newZoom;
 
             drawGrid();
@@ -594,7 +748,7 @@ onMounted(() => {
             return;
         }
 
-        // Use the appropriate grid for pathfinding
+        // Use the correct grid for pathfinding
         const gridForPathfinding = pathfindingGrid || grid;
         if (!gridForPathfinding || gridForPathfinding.length === 0) {
             showNotification(
@@ -651,8 +805,7 @@ onMounted(() => {
                 const tspTime = performance.now() - startTime;
 
                 console.log(
-                    `TSP solved in ${tspTime.toFixed(2)}ms for ${
-                        scaledWaypoints.length
+                    `TSP solved in ${tspTime.toFixed(2)}ms for ${scaledWaypoints.length
                     } waypoints`
                 );
 
@@ -730,9 +883,8 @@ onMounted(() => {
                 console.log("Computed path with", fullPath.length, "points");
                 console.log("Distance info:", distanceInfo);
 
-                // Store the computed path, order, and distance info
+                // Store the computed path and distance info
                 computedPath = fullPath;
-                waypointOrder = order;
                 pathDistanceInfo = distanceInfo;
 
                 hideLoadingModal();
@@ -743,8 +895,7 @@ onMounted(() => {
 
                 showNotification(
                     "Optimal Path Computed!",
-                    `Path: ${
-                        fullPath.length
+                    `Path: ${fullPath.length
                     } points | Distance: ${pathLengthCm} cm (${pathLengthM} m) | TSP solved in ${tspTime.toFixed(
                         1
                     )}ms`,
@@ -802,7 +953,7 @@ function regeneratePathfindingGrid() {
         if (pathfindingResult) {
             pathfindingGrid = pathfindingResult.grid;
             pathfindingScaleFactor = pathfindingResult.scaleFactor;
-            
+
             // Also update the main grid if we're not using on-demand rendering
             if (!useOnDemandRendering) {
                 grid = pathfindingResult.grid;
@@ -813,20 +964,18 @@ function regeneratePathfindingGrid() {
         pathfindingGrid = [];
         grid = [];
     }
-
-    console.log("Pathfinding grid regenerated");
 }
 
 // Wall editing functions
 function toggleEditingMode() {
     isEditingMode = !isEditingMode;
-    
+
     if (isEditingMode) {
         // Exit waypoint mode if active
         if (isAddingWaypoints) {
             toggleWaypointMode();
         }
-        
+
         canvas.style.cursor = "crosshair";
         showNotification(
             "Editing Mode Activated",
@@ -839,18 +988,18 @@ function toggleEditingMode() {
         isDrawingWall = false;
         currentWallStart = null;
         tempWallEnd = null;
-        
+
         canvas.style.cursor = "grab";
         showNotification(
             "Editing Mode Deactivated",
             "Editing tools are now disabled",
             "info"
         );
-        
+
         // Update button states
         updateEditingButtons();
     }
-    
+
     updateEditingButtons();
     drawGrid();
 }
@@ -864,7 +1013,7 @@ function setEditingTool(tool) {
         );
         return;
     }
-    
+
     // Reset current drawing state when switching tools
     isDrawingWall = false;
     currentWallStart = null;
@@ -872,9 +1021,9 @@ function setEditingTool(tool) {
     isSelectingWallPortion = false;
     selectionStart = null;
     selectionEnd = null;
-    
+
     editingTool = tool;
-    
+
     if (tool === 'add') {
         canvas.style.cursor = "crosshair";
         showNotification(
@@ -897,51 +1046,38 @@ function setEditingTool(tool) {
             "info"
         );
     }
-    
+
     updateEditingButtons();
     drawGrid();
 }
 
 function updateEditingButtons() {
-    // Update editing mode button
+    // Update editing mode button text content only
     const editBtn = document.getElementById("editModeBtn");
     if (editBtn) {
         if (isEditingMode) {
             editBtn.textContent = "✋ Stop Editing";
-            editBtn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
         } else {
             editBtn.textContent = "✏️ Edit Walls";
-            editBtn.className = "text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
         }
+        // Apply selection state using the new system
+        toggleButtonSelection("editModeBtn", isEditingMode);
     }
-    
-    // Update tool buttons
-    const addWallBtn = document.getElementById("addWallBtn");
-    const removeWallBtn = document.getElementById("removeWallBtn");
-    const cutWallBtn = document.getElementById("cutWallBtn");
-    
-    if (addWallBtn) {
-        if (editingTool === 'add') {
-            addWallBtn.className = "text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        } else {
-            addWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        }
-    }
-    
-    if (removeWallBtn) {
-        if (editingTool === 'remove') {
-            removeWallBtn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        } else {
-            removeWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        }
-    }
-    
-    if (cutWallBtn) {
-        if (editingTool === 'cut') {
-            cutWallBtn.className = "text-white bg-yellow-700 hover:bg-yellow-800 focus:ring-4 focus:ring-yellow-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        } else {
-            cutWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
-        }
+
+    // Update tool buttons - reset all first, then set the active one
+    const toolButtons = ["addWallBtn", "removeWallBtn", "cutWallBtn"];
+
+    toolButtons.forEach(buttonId => {
+        toggleButtonSelection(buttonId, false);
+    });
+
+    // Set the active tool button as selected
+    if (editingTool === 'add') {
+        toggleButtonSelection("addWallBtn", true);
+    } else if (editingTool === 'remove') {
+        toggleButtonSelection("removeWallBtn", true);
+    } else if (editingTool === 'cut') {
+        toggleButtonSelection("cutWallBtn", true);
     }
 }
 
@@ -956,14 +1092,14 @@ function addWallSegment(start, end) {
         x: end.x + (bounds ? bounds.minX : 0),
         y: end.y + (bounds ? bounds.minY : 0)
     };
-    
+
     const newSegment = {
         start: absoluteStart,
         end: absoluteEnd
     };
-    
+
     lineSegments.push(newSegment);
-    
+
     // Update bounds if necessary
     if (bounds) {
         bounds.minX = Math.min(bounds.minX, absoluteStart.x, absoluteEnd.x);
@@ -973,10 +1109,10 @@ function addWallSegment(start, end) {
         bounds.width = bounds.maxX - bounds.minX;
         bounds.height = bounds.maxY - bounds.minY;
     }
-    
+
     // Regenerate pathfinding grid
     regeneratePathfindingGrid();
-    
+
     showNotification(
         "Wall Added",
         `New wall segment added from (${start.x.toFixed(1)}, ${start.y.toFixed(1)}) to (${end.x.toFixed(1)}, ${end.y.toFixed(1)})`,
@@ -987,32 +1123,32 @@ function addWallSegment(start, end) {
 function removeWallNear(worldPos, tolerance = 5) {
     const toleranceSquared = tolerance * tolerance;
     let removedCount = 0;
-    
+
     // Convert click position to absolute coordinates for comparison with stored segments
     const absoluteClickPos = {
         x: worldPos.x + (bounds ? bounds.minX : 0),
         y: worldPos.y + (bounds ? bounds.minY : 0)
     };
-    
+
     // Remove line segments that are close to the click point
     lineSegments = lineSegments.filter(segment => {
         const distToStart = Math.pow(segment.start.x - absoluteClickPos.x, 2) + Math.pow(segment.start.y - absoluteClickPos.y, 2);
         const distToEnd = Math.pow(segment.end.x - absoluteClickPos.x, 2) + Math.pow(segment.end.y - absoluteClickPos.y, 2);
-        
+
         // Also check distance to the line segment itself
         const distToLine = pointToLineDistance(absoluteClickPos, segment.start, segment.end);
-        
+
         if (distToStart <= toleranceSquared || distToEnd <= toleranceSquared || distToLine <= tolerance) {
             removedCount++;
             return false; // Remove this segment
         }
         return true; // Keep this segment
     });
-    
+
     if (removedCount > 0) {
         // Regenerate pathfinding grid
         regeneratePathfindingGrid();
-        
+
         showNotification(
             "Wall Removed",
             `Removed ${removedCount} wall segment${removedCount !== 1 ? 's' : ''}`,
@@ -1027,116 +1163,24 @@ function removeWallNear(worldPos, tolerance = 5) {
     }
 }
 
-function cutWallAt(worldPos, tolerance = 5) {
-    // Convert click position to absolute coordinates for comparison with stored segments
-    const absoluteClickPos = {
-        x: worldPos.x + (bounds ? bounds.minX : 0),
-        y: worldPos.y + (bounds ? bounds.minY : 0)
-    };
-    
-    let cutCount = 0;
-    const newSegments = [];
-    
-    lineSegments.forEach(segment => {
-        // Check if click is close to this line segment
-        const distToLine = pointToLineDistance(absoluteClickPos, segment.start, segment.end);
-        
-        if (distToLine <= tolerance) {
-            // Find the closest point on the line segment to the click position
-            const cutPoint = getClosestPointOnLine(absoluteClickPos, segment.start, segment.end);
-            
-            // Check if the cut point is actually on the line segment (not just the extended line)
-            const distToStart = Math.sqrt(Math.pow(cutPoint.x - segment.start.x, 2) + Math.pow(cutPoint.y - segment.start.y, 2));
-            const distToEnd = Math.sqrt(Math.pow(cutPoint.x - segment.end.x, 2) + Math.pow(cutPoint.y - segment.end.y, 2));
-            const totalLength = Math.sqrt(Math.pow(segment.end.x - segment.start.x, 2) + Math.pow(segment.end.y - segment.start.y, 2));
-            
-            // Only cut if the point is actually on the segment (with a small tolerance for floating point errors)
-            if (Math.abs(distToStart + distToEnd - totalLength) < 0.1 && distToStart > 1 && distToEnd > 1) {
-                // Create two new segments
-                const segment1 = {
-                    start: { x: segment.start.x, y: segment.start.y },
-                    end: { x: cutPoint.x, y: cutPoint.y }
-                };
-                const segment2 = {
-                    start: { x: cutPoint.x, y: cutPoint.y },
-                    end: { x: segment.end.x, y: segment.end.y }
-                };
-                
-                newSegments.push(segment1, segment2);
-                cutCount++;
-            } else {
-                // Keep the original segment if cut point is too close to endpoints
-                newSegments.push(segment);
-            }
-        } else {
-            // Keep segments that aren't close to the click
-            newSegments.push(segment);
-        }
-    });
-    
-    if (cutCount > 0) {
-        lineSegments = newSegments;
-        
-        // Regenerate pathfinding grid
-        regeneratePathfindingGrid();
-        
-        showNotification(
-            "Wall Cut",
-            `Cut ${cutCount} wall segment${cutCount !== 1 ? 's' : ''} at click location`,
-            "success"
-        );
-    } else {
-        showNotification(
-            "No Wall Found",
-            "No wall segments found near the click location to cut",
-            "info"
-        );
-    }
-}
-
-function getClosestPointOnLine(point, lineStart, lineEnd) {
-    const A = point.x - lineStart.x;
-    const B = point.y - lineStart.y;
-    const C = lineEnd.x - lineStart.x;
-    const D = lineEnd.y - lineStart.y;
-    
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    
-    if (lenSq === 0) {
-        // Line start and end are the same point
-        return { x: lineStart.x, y: lineStart.y };
-    }
-    
-    let param = dot / lenSq;
-    
-    // Clamp parameter to line segment
-    param = Math.max(0, Math.min(1, param));
-    
-    return {
-        x: lineStart.x + param * C,
-        y: lineStart.y + param * D
-    };
-}
-
 function pointToLineDistance(point, lineStart, lineEnd) {
     const A = point.x - lineStart.x;
     const B = point.y - lineStart.y;
     const C = lineEnd.x - lineStart.x;
     const D = lineEnd.y - lineStart.y;
-    
+
     const dot = A * C + B * D;
     const lenSq = C * C + D * D;
-    
+
     if (lenSq === 0) {
         // Line start and end are the same point
         return Math.sqrt(A * A + B * B);
     }
-    
+
     let param = dot / lenSq;
-    
+
     let xx, yy;
-    
+
     if (param < 0) {
         xx = lineStart.x;
         yy = lineStart.y;
@@ -1147,10 +1191,10 @@ function pointToLineDistance(point, lineStart, lineEnd) {
         xx = lineStart.x + param * C;
         yy = lineStart.y + param * D;
     }
-    
+
     const dx = point.x - xx;
     const dy = point.y - yy;
-    
+
     return Math.sqrt(dx * dx + dy * dy);
 }
 
@@ -1164,14 +1208,14 @@ function removeWallPortion(start, end) {
         x: end.x + (bounds ? bounds.minX : 0),
         y: end.y + (bounds ? bounds.minY : 0)
     };
-    
+
     let removedCount = 0;
     const newSegments = [];
-    
+
     lineSegments.forEach((segment, index) => {
         // Check if any part of this wall segment intersects with the selection area
         const intersects = lineIntersectsSelection(segment, absoluteStart, absoluteEnd);
-        
+
         if (intersects) {
             // Remove the intersecting portion and keep the remaining parts
             const remainingParts = splitSegmentBySelection(segment, absoluteStart, absoluteEnd);
@@ -1187,12 +1231,12 @@ function removeWallPortion(start, end) {
             newSegments.push(segment);
         }
     });
-    
+
     lineSegments = newSegments;
-    
+
     // Regenerate pathfinding grid
     regeneratePathfindingGrid();
-    
+
     if (removedCount > 0) {
         showNotification(
             "Wall Portion Removed",
@@ -1214,7 +1258,7 @@ function lineIntersectsSelection(segment, selStart, selEnd) {
     const maxX = Math.max(selStart.x, selEnd.x);
     const minY = Math.min(selStart.y, selEnd.y);
     const maxY = Math.max(selStart.y, selEnd.y);
-    
+
     // Check if line segment intersects with the selection rectangle
     return lineIntersectsRect(segment.start, segment.end, minX, minY, maxX, maxY);
 }
@@ -1225,7 +1269,7 @@ function lineIntersectsRect(lineStart, lineEnd, rectX1, rectY1, rectX2, rectY2) 
         pointInRect(lineEnd, rectX1, rectY1, rectX2, rectY2)) {
         return true;
     }
-    
+
     // Check if line intersects any of the rectangle edges
     const rectEdges = [
         { start: { x: rectX1, y: rectY1 }, end: { x: rectX2, y: rectY1 } }, // top
@@ -1233,24 +1277,24 @@ function lineIntersectsRect(lineStart, lineEnd, rectX1, rectY1, rectX2, rectY2) 
         { start: { x: rectX2, y: rectY2 }, end: { x: rectX1, y: rectY2 } }, // bottom
         { start: { x: rectX1, y: rectY2 }, end: { x: rectX1, y: rectY1 } }  // left
     ];
-    
-    return rectEdges.some(edge => 
+
+    return rectEdges.some(edge =>
         linesIntersect(lineStart, lineEnd, edge.start, edge.end)
     );
 }
 
 function pointInRect(point, x1, y1, x2, y2) {
     return point.x >= Math.min(x1, x2) && point.x <= Math.max(x1, x2) &&
-           point.y >= Math.min(y1, y2) && point.y <= Math.max(y1, y2);
+        point.y >= Math.min(y1, y2) && point.y <= Math.max(y1, y2);
 }
 
 function linesIntersect(p1, p2, p3, p4) {
     const denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
     if (Math.abs(denom) < 0.0001) return false; // parallel lines
-    
+
     const t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
     const u = -((p1.x - p2.x) * (p1.y - p3.y) - (p1.y - p2.y) * (p1.x - p3.x)) / denom;
-    
+
     return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
 
@@ -1260,7 +1304,7 @@ function splitSegmentBySelection(segment, selStart, selEnd) {
     const maxX = Math.max(selStart.x, selEnd.x);
     const minY = Math.min(selStart.y, selEnd.y);
     const maxY = Math.max(selStart.y, selEnd.y);
-    
+
     // Find intersection points with selection rectangle
     const intersections = [];
     const rectEdges = [
@@ -1269,17 +1313,17 @@ function splitSegmentBySelection(segment, selStart, selEnd) {
         { start: { x: maxX, y: maxY }, end: { x: minX, y: maxY } }, // bottom
         { start: { x: minX, y: maxY }, end: { x: minX, y: minY } }  // left
     ];
-    
+
     rectEdges.forEach(edge => {
         const intersection = getLineIntersection(segment.start, segment.end, edge.start, edge.end);
         if (intersection) {
             intersections.push(intersection);
         }
     });
-    
+
     // Remove duplicates and sort by distance from segment start
     const uniqueIntersections = intersections.filter((point, index, arr) => {
-        return index === arr.findIndex(p => 
+        return index === arr.findIndex(p =>
             Math.abs(p.x - point.x) < 0.1 && Math.abs(p.y - point.y) < 0.1
         );
     }).sort((a, b) => {
@@ -1287,23 +1331,23 @@ function splitSegmentBySelection(segment, selStart, selEnd) {
         const distB = Math.sqrt(Math.pow(b.x - segment.start.x, 2) + Math.pow(b.y - segment.start.y, 2));
         return distA - distB;
     });
-    
+
     if (uniqueIntersections.length === 0) {
         // No intersections, check if entire segment is inside selection
-        if (pointInRect(segment.start, minX, minY, maxX, maxY) && 
+        if (pointInRect(segment.start, minX, minY, maxX, maxY) &&
             pointInRect(segment.end, minX, minY, maxX, maxY)) {
             return []; // Remove entire segment
         }
         return [segment]; // Keep entire segment
     }
-    
+
     // Create segments from the parts outside the selection
     const parts = [];
-    
+
     // Part before first intersection
     if (uniqueIntersections.length > 0) {
         const distToFirst = Math.sqrt(
-            Math.pow(uniqueIntersections[0].x - segment.start.x, 2) + 
+            Math.pow(uniqueIntersections[0].x - segment.start.x, 2) +
             Math.pow(uniqueIntersections[0].y - segment.start.y, 2)
         );
         if (distToFirst > 1) { // Only keep if significant length
@@ -1313,12 +1357,12 @@ function splitSegmentBySelection(segment, selStart, selEnd) {
             });
         }
     }
-    
+
     // Part after last intersection
     if (uniqueIntersections.length > 0) {
         const lastIndex = uniqueIntersections.length - 1;
         const distToLast = Math.sqrt(
-            Math.pow(segment.end.x - uniqueIntersections[lastIndex].x, 2) + 
+            Math.pow(segment.end.x - uniqueIntersections[lastIndex].x, 2) +
             Math.pow(segment.end.y - uniqueIntersections[lastIndex].y, 2)
         );
         if (distToLast > 1) { // Only keep if significant length
@@ -1328,24 +1372,24 @@ function splitSegmentBySelection(segment, selStart, selEnd) {
             });
         }
     }
-    
+
     return parts;
 }
 
 function getLineIntersection(p1, p2, p3, p4) {
     const denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
     if (Math.abs(denom) < 0.0001) return null; // parallel lines
-    
+
     const t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
     const u = -((p1.x - p2.x) * (p1.y - p3.y) - (p1.y - p2.y) * (p1.x - p3.x)) / denom;
-    
+
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
         return {
             x: p1.x + t * (p2.x - p1.x),
             y: p1.y + t * (p2.y - p1.y)
         };
     }
-    
+
     return null;
 }
 
@@ -1358,11 +1402,9 @@ function toggleWaypointMode() {
         if (isEditingMode) {
             toggleEditingMode();
         }
-        
+
         btn.textContent = "✋ Stop Adding";
-        btn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
         canvas.style.cursor = "crosshair";
-        console.log("Waypoint mode activated - click on the canvas to add waypoints");
         showNotification(
             "Waypoint Mode",
             "Click on the canvas to add waypoints. Press ESC to exit.",
@@ -1370,12 +1412,12 @@ function toggleWaypointMode() {
         );
     } else {
         btn.textContent = "📍 Add Waypoint";
-        btn.className = "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
         canvas.style.cursor = "grab";
-        console.log("Waypoint mode deactivated");
         showNotification("Waypoint Mode", "Waypoint adding mode disabled", "info");
     }
 
+    // Apply selection state using the new system
+    toggleButtonSelection("addWpBtn", isAddingWaypoints);
     updateViewportInfo();
 }
 
@@ -1386,20 +1428,11 @@ function addWaypoint(e) {
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
 
-    // Debug: log canvas dimensions and mouse position
-    console.log("Canvas rect:", rect);
-    console.log("Canvas internal size:", canvas.width, "x", canvas.height);
-    console.log("Mouse position:", e.clientX, e.clientY);
-    console.log("Canvas relative position:", canvasX, canvasY);
-
     // Account for canvas scaling if the displayed size differs from internal size
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const scaledCanvasX = canvasX * scaleX;
     const scaledCanvasY = canvasY * scaleY;
-
-    console.log("Scale factors:", scaleX, scaleY);
-    console.log("Scaled canvas position:", scaledCanvasX, scaledCanvasY);
 
     // Convert canvas coordinates to world coordinates
     const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
@@ -1410,13 +1443,6 @@ function addWaypoint(e) {
     const snappedY = Math.round(worldY);
 
     waypoints.push([snappedX, snappedY]);
-    console.log(
-        `Added waypoint ${
-            waypoints.length - 1
-        } at (${snappedX}, ${snappedY}) [snapped from (${worldX.toFixed(
-            2
-        )}, ${worldY.toFixed(2)})]`
-    );
     drawGrid();
     showNotification(
         "Waypoint Added",
@@ -1432,7 +1458,7 @@ function resetViewport() {
     // Expand bounds by 5% on each side for better waypoint placement
     const expandedWidth = bounds.width * 1.1; // 10% total (5% on each side)
     const expandedHeight = bounds.height * 1.1; // 10% total (5% on each side)
-    
+
     const scaleX = canvas.width / expandedWidth;
     const scaleY = canvas.height / expandedHeight;
     const scale = Math.min(scaleX, scaleY);
@@ -1441,8 +1467,6 @@ function resetViewport() {
     // Center the expanded area, which centers the original bounds with 5% margin
     viewport.x = (canvas.width - expandedWidth * scale) / 2;
     viewport.y = (canvas.height - expandedHeight * scale) / 2;
-
-    console.log("Reset viewport:", viewport);
 }
 
 function worldToCanvas(worldX, worldY) {
@@ -1495,7 +1519,7 @@ function updateViewportInfo() {
             modeText += "Select a tool to start editing";
         }
         modeText += ", Middle-click to pan";
-        
+
         modeIndicator.textContent = modeText;
         modeIndicator.style.color = "#ff9800";
         modeIndicator.style.fontWeight = "bold";
@@ -1520,17 +1544,28 @@ function drawGrid() {
 function drawLinesOnDemand() {
     if (!lineSegments || !bounds) return;
 
+<<<<<<< HEAD
     // Set background based on theme
     const darkMode = isDarkMode();
     ctx.fillStyle = darkMode ? "#1f2937" : "#e5e7eb"; // bg-gray-800 : bg-gray-200
+=======
+    // Set background - check for dark mode
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    ctx.fillStyle = isDarkMode ? "#1f2937" : "white"; // Use gray-800 for dark mode
+    ctx.strokeStyle = isDarkMode ? "#e5e7eb" : "black"; // Use gray-200 for dark mode
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
 
     // Calculate visible area in world coordinates
     const topLeft = canvasToWorld(0, 0);
     const bottomRight = canvasToWorld(canvas.width, canvas.height);
 
+<<<<<<< HEAD
     // Draw line segments with theme-aware colors
     ctx.strokeStyle = darkMode ? "#e5e7eb" : "#1f2937"; // bg-gray-200 : bg-gray-800
+=======
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
     // Use fixed line width that doesn't scale with zoom, but has a minimum/maximum
     const baseLineWidth = 1;
     const minLineWidth = 0.5;
@@ -1626,12 +1661,12 @@ function drawWaypointsAndPath() {
     if (computedPath.length > 0) {
         drawPath(computedPath);
     }
-    
+
     // Draw temporary wall being drawn
     if (isDrawingWall && currentWallStart && tempWallEnd) {
         const startPos = worldToCanvas(currentWallStart.x, currentWallStart.y);
         const endPos = worldToCanvas(tempWallEnd.x, tempWallEnd.y);
-        
+
         ctx.strokeStyle = "orange";
         ctx.lineWidth = 3;
         ctx.setLineDash([5, 5]); // Dashed line for temporary wall
@@ -1641,21 +1676,21 @@ function drawWaypointsAndPath() {
         ctx.stroke();
         ctx.setLineDash([]); // Reset line dash
     }
-    
+
     // Draw selection rectangle for wall portion removal
     if (isSelectingWallPortion && selectionStart && selectionEnd) {
         const startPos = worldToCanvas(selectionStart.x, selectionStart.y);
         const endPos = worldToCanvas(selectionEnd.x, selectionEnd.y);
-        
+
         const x = Math.min(startPos.x, endPos.x);
         const y = Math.min(startPos.y, endPos.y);
         const width = Math.abs(endPos.x - startPos.x);
         const height = Math.abs(endPos.y - startPos.y);
-        
+
         // Draw selection rectangle with semi-transparent fill
         ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
         ctx.fillRect(x, y, width, height);
-        
+
         // Draw selection rectangle border
         ctx.strokeStyle = "red";
         ctx.lineWidth = 2;
@@ -1693,7 +1728,11 @@ function drawPath(path) {
 <template>
     <div class="pathfinder-container grid grid-cols-4 gap-1 p-1">
         <!-- Canvas -->
+<<<<<<< HEAD
         <div class="col-span-3 not-dark:bg-gray-200 dark:bg-gray-800 rounded overflow-hidden relative">
+=======
+        <div class="col-span-3 dark:bg-gray-800 rounded overflow-hidden relative">
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
             <!-- Overlay Info Panel -->
             <div
                 class="absolute top-2 left-2 z-10 bg-white/80 dark:bg-gray-900/80 rounded-lg shadow px-4 py-2 flex flex-col gap-1 pointer-events-none">
@@ -1716,7 +1755,11 @@ function drawPath(path) {
 
 
         <!-- Controls Section -->
+<<<<<<< HEAD
         <div class="col-span-1 gap-1 p-1 bg-gray-200 dark:bg-gray-800 rounded">
+=======
+        <div class="col-span-1 gap-1 p-1 dark:bg-gray-800 rounded">
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
             <div class="p-2">
                 <!-- File Upload -->
                 <div class="mb-5">
@@ -1724,7 +1767,11 @@ function drawPath(path) {
                         Upload DXF File
                     </label>
                     <input type="file" id="dxfFile" accept=".dxf"
+<<<<<<< HEAD
                         class="block w-full text-sm not-dark:text-gray-900 border not-dark:border-gray-300 rounded-lg cursor-pointer not-dark:bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" />
+=======
+                        class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" />
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-300" id="file_input_help">DXF files are
                         supported.</p>
                 </div>
@@ -1799,7 +1846,11 @@ function drawPath(path) {
                             Wall Distance: <span id="wallBufferValue">2</span>
                         </label>
                         <input id="wallBufferSlider" type="range" min="0" max="5" value="2"
+<<<<<<< HEAD
                             class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+=======
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
                     </div>
 
                     <!-- Path Smoothing -->
@@ -1814,6 +1865,7 @@ function drawPath(path) {
                 </div>
             </div>
         </div>
+<<<<<<< HEAD
 
         <!-- Modals -->
         <div class="canvas-container">
@@ -1828,11 +1880,40 @@ function drawPath(path) {
                             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mb-4"></div>
                             <p id="loadingText" class="text-lg font-normal text-gray-500 dark:text-gray-400">Loading...</p>
                         </div>
+=======
+
+        <!-- Flowbite Loading Modal -->
+        <div id="modalBackdrop" class="hidden fixed inset-0 z-40 bg-gray-900 bg-opacity-50 dark:bg-opacity-80"></div>
+
+        <div id="loadingModal" class="hidden fixed inset-0 z-50 w-full h-full items-center justify-center">
+            <div class="relative w-full max-w-md max-h-full">
+                <!-- Modal content -->
+                <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+                    <!-- Modal body -->
+                    <div class="p-6 text-center">
+                        <div role="status" class="flex justify-center mb-4">
+                            <svg aria-hidden="true"
+                                class="w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
+                                viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                                    fill="currentColor" />
+                                <path
+                                    d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                                    fill="currentFill" />
+                            </svg>
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <h3 id="loadingText">Loading...</h3>
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
                     </div>
                 </div>
             </div>
         </div>
+<<<<<<< HEAD
         <!-- Flowbite Toast Container -->
         <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-4"></div>
+=======
+>>>>>>> 5211b50693cb89ccff80dabda703d58dfbe97085
     </div>
 </template>
