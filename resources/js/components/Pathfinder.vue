@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { Modal } from 'flowbite';
+import { useAppearance } from '@/composables/useAppearance';
 import { loadDxfFile } from "../pathfinder/dxf_loader.js";
 import {
     createFinder,
@@ -15,8 +17,13 @@ import {
     calculateTotalDistance,
 } from "../pathfinder/tsp_solver.js";
 
+const { appearance } = useAppearance();
+
 let canvas;
 let ctx;
+
+// Flowbite modal instance
+let loadingModalInstance = null;
 
 let grid = [];
 let lineSegments = [];
@@ -41,7 +48,7 @@ let viewport = {
     y: 0,
     zoom: 1,
     minZoom: 0.01,
-    maxZoom: 50,
+    maxZoom: 0.5,
 };
 
 let isDragging = false;
@@ -72,52 +79,106 @@ function setupHighDPICanvas(canvas, ctx) {
     canvas.style.height = rect.height + 'px';
 }
 
-// Notification system
+// Function to check if dark mode is active
+function isDarkMode() {
+    if (appearance.value === 'dark') return true;
+    if (appearance.value === 'light') return false;
+    // For 'system', check if the dark class is applied to document.documentElement
+    return document.documentElement.classList.contains('dark');
+}
 
-
-// Notification system
+// Notification system using Flowbite Toast
 function showNotification(title, message, type = "info") {
-    const notification = document.createElement("div");
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <div class="notification-title">${title}</div>
-        <div class="notification-message">${message}</div>
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    // Create Flowbite toast
+    const toast = document.createElement("div");
+    toast.className = "flex items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800";
+    
+    // Icon based on type
+    let iconClass = "";
+    let iconBg = "";
+    switch(type) {
+        case "success":
+            iconClass = "w-3 h-3";
+            iconBg = "bg-green-100 text-green-500 dark:bg-green-800 dark:text-green-200";
+            break;
+        case "error":
+            iconClass = "w-3 h-3";
+            iconBg = "bg-red-100 text-red-500 dark:bg-red-800 dark:text-red-200";
+            break;
+        case "warning":
+            iconClass = "w-3 h-3";
+            iconBg = "bg-orange-100 text-orange-500 dark:bg-orange-700 dark:text-orange-200";
+            break;
+        default: // info
+            iconClass = "w-3 h-3";
+            iconBg = "bg-blue-100 text-blue-500 dark:bg-blue-800 dark:text-blue-200";
+    }
+
+    toast.innerHTML = `
+        <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 ${iconBg} rounded-lg">
+            <div class="${iconClass}">
+                <span class="sr-only">${type} icon</span>
+                <div class="w-3 h-3 bg-current rounded-full"></div>
+            </div>
+        </div>
+        <div class="ms-3 text-sm font-normal">
+            <div class="font-semibold">${title}</div>
+            <div class="text-xs">${message}</div>
+        </div>
+        <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700">
+            <span class="sr-only">Close</span>
+            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+            </svg>
+        </button>
     `;
 
-    document.body.appendChild(notification);
+    // Add close functionality
+    const closeButton = toast.querySelector('button');
+    closeButton.addEventListener('click', () => {
+        toast.remove();
+    });
 
-    // Trigger animation
-    setTimeout(() => notification.classList.add("show"), 100);
+    container.appendChild(toast);
 
     // Auto-remove after 4 seconds
     setTimeout(() => {
-        notification.classList.remove("show");
-        setTimeout(() => notification.remove(), 300);
+        if (toast.parentNode) {
+            toast.remove();
+        }
     }, 4000);
 }
 
-// Loading modal system
+// Loading modal system using Flowbite
 function showLoadingModal(text = "Loading...") {
-    const modal = document.getElementById("loadingModal");
-    const overlay = document.getElementById("modalOverlay");
     const loadingText = document.getElementById("loadingText");
-
-    loadingText.textContent = text;
-    overlay.style.display = "block";
-    modal.style.display = "block";
-
-    setTimeout(() => overlay.classList.add("show"), 10);
+    
+    if (loadingText) {
+        loadingText.textContent = text;
+    }
+    
+    if (!loadingModalInstance) {
+        const modalElement = document.getElementById("loadingModal");
+        if (modalElement) {
+            loadingModalInstance = new Modal(modalElement, {
+                backdrop: 'static',
+                closable: false
+            });
+        }
+    }
+    
+    if (loadingModalInstance) {
+        loadingModalInstance.show();
+    }
 }
 
 function hideLoadingModal() {
-    const modal = document.getElementById("loadingModal");
-    const overlay = document.getElementById("modalOverlay");
-
-    overlay.classList.remove("show");
-    setTimeout(() => {
-        overlay.style.display = "none";
-        modal.style.display = "none";
-    }, 300);
+    if (loadingModalInstance) {
+        loadingModalInstance.hide();
+    }
 }
 
 onMounted(() => {
@@ -1459,16 +1520,17 @@ function drawGrid() {
 function drawLinesOnDemand() {
     if (!lineSegments || !bounds) return;
 
-    // Set background
-    ctx.fillStyle = "white";
+    // Set background based on theme
+    const darkMode = isDarkMode();
+    ctx.fillStyle = darkMode ? "#1f2937" : "#e5e7eb"; // bg-gray-800 : bg-gray-200
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Calculate visible area in world coordinates
     const topLeft = canvasToWorld(0, 0);
     const bottomRight = canvasToWorld(canvas.width, canvas.height);
 
-    // Draw line segments
-    ctx.strokeStyle = "black";
+    // Draw line segments with theme-aware colors
+    ctx.strokeStyle = darkMode ? "#e5e7eb" : "#1f2937"; // bg-gray-200 : bg-gray-800
     // Use fixed line width that doesn't scale with zoom, but has a minimum/maximum
     const baseLineWidth = 1;
     const minLineWidth = 0.5;
@@ -1511,6 +1573,11 @@ function drawLinesOnDemand() {
 function drawGridArray() {
     if (!grid || grid.length === 0) return;
 
+    // Set background based on theme
+    const darkMode = isDarkMode();
+    ctx.fillStyle = darkMode ? "#1f2937" : "#e5e7eb"; // bg-gray-800 : bg-gray-200
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     // Calculate which part of the grid is visible
     const topLeft = canvasToWorld(0, 0);
     const bottomRight = canvasToWorld(canvas.width, canvas.height);
@@ -1520,12 +1587,12 @@ function drawGridArray() {
     const startY = Math.max(0, Math.floor(topLeft.y));
     const endY = Math.min(grid.length, Math.ceil(bottomRight.y));
 
-    // Only draw visible cells
+    // Only draw visible cells with theme-aware colors
     for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
             if (grid[y][x] === 1) {
                 const canvasPos = worldToCanvas(x, y);
-                ctx.fillStyle = "black";
+                ctx.fillStyle = darkMode ? "#e5e7eb" : "#1f2937"; // bg-gray-200 : bg-gray-800
                 ctx.fillRect(canvasPos.x, canvasPos.y, viewport.zoom, viewport.zoom);
             }
         }
@@ -1536,6 +1603,7 @@ function drawGridArray() {
 
 function drawWaypointsAndPath() {
     // Draw waypoints
+    const darkMode = isDarkMode();
     waypoints.forEach((wp, i) => {
         const canvasPos = worldToCanvas(wp[0], wp[1]);
         // Waypoint size that scales reasonably with zoom
@@ -1547,7 +1615,8 @@ function drawWaypointsAndPath() {
         ctx.fillStyle = "blue";
         ctx.fillRect(canvasPos.x - size / 2, canvasPos.y - size / 2, size, size);
 
-        ctx.fillStyle = "black";
+        // Use theme-aware text color for waypoint numbers
+        ctx.fillStyle = darkMode ? "#f9fafb" : "#111827"; // text-gray-50 : text-gray-900
         const fontSize = Math.max(8, Math.min(14, 12 / Math.sqrt(viewport.zoom * 0.5)));
         ctx.font = `${fontSize}px Arial`;
         ctx.fillText(i, canvasPos.x + size / 2, canvasPos.y - size / 2);
@@ -1622,159 +1691,148 @@ function drawPath(path) {
 </script>
 
 <template>
-    <div class="pathfinder-container">
+    <div class="pathfinder-container grid grid-cols-4 gap-1 p-1">
+        <!-- Canvas -->
+        <div class="col-span-3 not-dark:bg-gray-200 dark:bg-gray-800 rounded overflow-hidden relative">
+            <!-- Overlay Info Panel -->
+            <div
+                class="absolute top-2 left-2 z-10 bg-white/80 dark:bg-gray-900/80 rounded-lg shadow px-4 py-2 flex flex-col gap-1 pointer-events-none">
+                <div class="flex gap-2 items-center">
+                    <span>Zoom:</span><span id="zoomLevel">1.00</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <span>Waypoint Count:</span><span id="waypointCount">0</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <span>Path Distance:</span><span id="pathDistance">-</span>
+                </div>
+            </div>
+            <canvas id="gridCanvas" width="1200" height="800"
+                class="block w-full h-auto max-h-[70vh] object-contain"></canvas>
+            <span id="modeIndicator" class="block mt-2 px-2 py-1 text-sm">
+                Left-click to pan, Middle-click to pan, Mouse wheel to zoom
+            </span>
+        </div>
+
+
         <!-- Controls Section -->
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                
+        <div class="col-span-1 gap-1 p-1 bg-gray-200 dark:bg-gray-800 rounded">
+            <div class="p-2">
                 <!-- File Upload -->
-                <div class="col-span-full">
-                    <label for="dxfFile" class="block mb-2 text-sm font-medium text-gray-900">
+                <div class="mb-5">
+                    <label for="dxfFile" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
                         Upload DXF File
                     </label>
-                    <input 
-                        type="file" 
-                        id="dxfFile" 
-                        accept=".dxf"
-                        class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
-                    />
+                    <input type="file" id="dxfFile" accept=".dxf"
+                        class="block w-full text-sm not-dark:text-gray-900 border not-dark:border-gray-300 rounded-lg cursor-pointer not-dark:bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" />
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-300" id="file_input_help">DXF files are
+                        supported.</p>
                 </div>
 
                 <!-- Action Buttons -->
-                <button
-                    id="addWpBtn"
-                    type="button"
-                    class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    � Add Waypoint
-                </button>
+                <div class="grid grid-cols-2 mb-5">
+                    <p class="block text-sm font-medium text-gray-900 dark:text-white col-span-2">Waypoint Control</p>
+                    <hr class="mb-2 border-gray-300 dark:border-gray-600 col-span-2" />
+                    
+                    
+                    <button id="addWpBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        � Add Waypoint
+                    </button>
 
-                <button
-                    id="clearWpBtn"
-                    type="button"
-                    class="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    �️ Clear Waypoints
-                </button>
-
-                <button
-                    id="computePathBtn"
-                    type="button"
-                    class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    � Compute Path
-                </button>
-
-                <button
-                    id="resetViewBtn"
-                    type="button"
-                    class="text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    🔄 Reset View
-                </button>
-
-                <!-- Wall Editing Controls -->
-                <button
-                    id="editModeBtn"
-                    type="button"
-                    class="text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    ✏️ Edit Walls
-                </button>
-
-                <button
-                    id="addWallBtn"
-                    type="button"
-                    class="text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    ➕ Add Wall
-                </button>
-
-                <button
-                    id="removeWallBtn"
-                    type="button"
-                    class="text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    ➖ Remove Wall
-                </button>
-
-                <button
-                    id="cutWallBtn"
-                    type="button"
-                    @click="setEditingTool('cut')"
-                    class="text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
-                >
-                    ✂️ Select & Remove
-                </button>
-
-                <!-- Wall Distance Control -->
-                <div class="col-span-full md:col-span-1">
-                    <label for="wallBufferSlider" class="block mb-2 text-sm font-medium text-gray-900">
-                        Wall Distance: <span id="wallBufferValue" class="text-blue-600 font-semibold">2</span>
-                    </label>
-                    <input 
-                        id="wallBufferSlider" 
-                        type="range" 
-                        min="0" 
-                        max="10" 
-                        value="2" 
-                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <button id="clearWpBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        �️ Clear Waypoints
+                    </button>
                 </div>
 
-                <!-- Path Smoothing -->
-                <div class="flex items-center">
-                    <input 
-                        id="pathSmoothingCheckbox" 
-                        type="checkbox" 
-                        checked 
-                        class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    />
-                    <label for="pathSmoothingCheckbox" class="ms-2 text-sm font-medium text-gray-900">
-                        Enable Path Smoothing
-                    </label>
+
+                <div class="grid grid-cols-1 mb-5">
+                    <p class="block text-sm font-medium text-gray-900 dark:text-white">Pathfinding & view control</p>
+                    <hr class="mb-2 border-gray-300 dark:border-gray-600" />
+                    
+                    
+                    <button id="computePathBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        � Compute Path
+                    </button>
+
+                    <button id="resetViewBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        🔄 Reset View
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 mb-5">
+                    <p class="block text-sm font-medium text-gray-900 dark:text-white col-span-2">Editor</p>
+                    <hr class="mb-2 border-gray-300 dark:border-gray-600 col-span-2" />
+
+                    <!-- Wall Editing Controls -->
+                    <button id="editModeBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        ✏️ Edit Walls
+                    </button>
+
+                    <button id="cutWallBtn" type="button" @click="setEditingTool('cut')"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        ✂️ Select & Remove
+                    </button>
+
+                    <button id="addWallBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        ➕ Add Wall
+                    </button>
+
+                    <button id="removeWallBtn" type="button"
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        ➖ Remove Wall
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 mb-5">
+                    <p class="block text-sm font-medium text-gray-900 dark:text-white">Pathfinding Settings</p>
+                    <hr class="mb-2 border-gray-300 dark:border-gray-600" />
+                    <!-- Wall Distance Control -->
+                    <div>
+                        <label for="wallBufferSlider"
+                            class="block text-sm font-medium text-gray-900 dark:text-white">
+                            Wall Distance: <span id="wallBufferValue">2</span>
+                        </label>
+                        <input id="wallBufferSlider" type="range" min="0" max="5" value="2"
+                            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+                    </div>
+
+                    <!-- Path Smoothing -->
+                    <div>
+                        <input id="pathSmoothingCheckbox" type="checkbox" checked
+                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+                        <label for="pathSmoothingCheckbox"
+                            class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                            Enable Path Smoothing
+                        </label>
+                    </div>
                 </div>
             </div>
-
-            <!-- Viewport Info -->
-            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                        <span class="font-medium text-gray-600">Zoom:</span>
-                        <span id="zoomLevel" class="text-gray-900 font-mono">1.00</span>
-                    </div>
-                    <div>
-                        <span class="font-medium text-gray-600">Waypoints:</span>
-                        <span id="waypointCount" class="text-blue-600 font-semibold">0</span>
-                    </div>
-                    <div>
-                        <span class="font-medium text-gray-600">Distance:</span>
-                        <span id="pathDistance" class="text-green-600 font-semibold">-</span>
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <span id="modeIndicator" class="text-xs text-gray-500">
-                        Left-click to pan, Middle-click to pan, Mouse wheel to zoom
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Canvas -->
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <canvas id="gridCanvas" width="1200" height="800" class="w-full h-96"></canvas>
         </div>
 
         <!-- Modals -->
         <div class="canvas-container">
-            <div id="loadingModal" class="modal">
-                <div class="modal-content">
-                    <div class="loader"></div>
-                    <p id="loadingText">Loading...</p>
+            <!-- Loading Modal using Flowbite -->
+            <div id="loadingModal" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+                <div class="relative p-4 w-full max-w-md max-h-full">
+                    <!-- Modal content -->
+                    <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+                        <!-- Modal body -->
+                        <div class="p-6 text-center">
+                            <!-- Loading spinner -->
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mb-4"></div>
+                            <p id="loadingText" class="text-lg font-normal text-gray-500 dark:text-gray-400">Loading...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div id="modalOverlay" class="modal-overlay"></div>
         </div>
-        <div id="notificationContainer" class="notification-container"></div>
+        <!-- Flowbite Toast Container -->
+        <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-4"></div>
     </div>
 </template>
