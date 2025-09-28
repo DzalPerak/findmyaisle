@@ -34,11 +34,13 @@ Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
     Route::get('/shops/available', [ShopController::class, 'getAvailableShops'])->name('api.shops.available');
     Route::get('/shops/{shop}/dxf', [ShopController::class, 'getDxfFile'])->name('api.shops.dxf');
     
+    // Shop details - Available to all authenticated users for pathfinding
+    Route::get('/shops/{shop}', [ShopController::class, 'show'])->name('api.shops.show');
+    
     // Shop Management API Routes - Admin/Editor only
     Route::middleware('role:admin,editor')->group(function () {
         Route::get('/shops', [ShopController::class, 'index'])->name('api.shops.index');
         Route::post('/shops', [ShopController::class, 'store'])->name('api.shops.store');
-        Route::get('/shops/{shop}', [ShopController::class, 'show'])->name('api.shops.show');
         Route::put('/shops/{shop}', [ShopController::class, 'update'])->name('api.shops.update');
         Route::delete('/shops/{shop}', [ShopController::class, 'destroy'])->name('api.shops.destroy');
     });
