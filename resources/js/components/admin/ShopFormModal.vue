@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { notify } from '@/utils/notifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -195,7 +196,13 @@ const submitForm = async () => {
         // Use Inertia router for proper CSRF handling
         router.post(url, formData, {
             forceFormData: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                // Show success notification
+                const actionText = isEditing.value ? 'updated' : 'created';
+                notify.success(
+                    `Shop ${actionText} successfully`,
+                    `${form.value.name} has been ${actionText}.`
+                );
                 emit('saved');
                 resetForm();
             },

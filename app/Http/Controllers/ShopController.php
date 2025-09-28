@@ -7,6 +7,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ShopController extends Controller
@@ -36,7 +38,7 @@ class ShopController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:shops,name',
@@ -48,10 +50,7 @@ class ShopController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $shopData = $validator->validated();
@@ -66,10 +65,7 @@ class ShopController extends Controller
 
         $shop = Shop::create($shopData);
 
-        return response()->json([
-            'message' => 'Shop created successfully',
-            'shop' => $shop
-        ], 201);
+        return redirect()->back()->with('success', 'Shop created successfully');
     }
 
     /**
@@ -83,7 +79,7 @@ class ShopController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Shop $shop): JsonResponse
+    public function update(Request $request, Shop $shop)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:shops,name,' . $shop->id,
@@ -95,10 +91,7 @@ class ShopController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $shopData = $validator->validated();
@@ -118,16 +111,13 @@ class ShopController extends Controller
 
         $shop->update($shopData);
 
-        return response()->json([
-            'message' => 'Shop updated successfully',
-            'shop' => $shop
-        ]);
+        return redirect()->back()->with('success', 'Shop updated successfully');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Shop $shop): JsonResponse
+    public function destroy(Shop $shop)
     {
         // Delete associated DXF file if exists
         if ($shop->dxf_file_path && Storage::disk('public')->exists($shop->dxf_file_path)) {
@@ -136,9 +126,7 @@ class ShopController extends Controller
 
         $shop->delete();
 
-        return response()->json([
-            'message' => 'Shop deleted successfully'
-        ]);
+        return redirect()->back()->with('success', 'Shop deleted successfully');
     }
 
     /**

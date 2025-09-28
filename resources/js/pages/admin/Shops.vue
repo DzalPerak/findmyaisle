@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Head, usePage, router } from '@inertiajs/vue3';
+import { notify } from '@/utils/notifications';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,9 @@ interface ShopsResponse {
 // Permissions check
 const { canAccessAdmin, hasRole } = useUserRoles();
 const canEdit = computed(() => hasRole('admin') || hasRole('editor'));
+
+// Page and flash messages
+const page = usePage();
 
 // State management
 const shops = ref<Shop[]>([]);
@@ -123,30 +127,30 @@ const fetchShops = async (page = 1, search = '') => {
     }
 };
 
-const deleteShop = async (shop: Shop) => {
+const deleteShop = (shop: Shop) => {
     loading.value = true;
-    try {
-        const response = await fetch(`/api/shops/${shop.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to delete shop');
+    
+    router.delete(`/api/shops/${shop.id}`, {
+        onSuccess: () => {
+            notify.success(
+                'Shop deleted successfully',
+                `${shop.name} has been permanently deleted.`
+            );
+            fetchShops(pagination.value.currentPage, searchQuery.value);
+            showDeleteModal.value = false;
+            selectedShop.value = null;
+        },
+        onError: (errors) => {
+            console.error('Error deleting shop:', errors);
+            notify.error(
+                'Failed to delete shop',
+                'An error occurred while trying to delete the shop. Please try again.'
+            );
+        },
+        onFinish: () => {
+            loading.value = false;
         }
-
-        await fetchShops(pagination.value.currentPage, searchQuery.value);
-        showDeleteModal.value = false;
-        selectedShop.value = null;
-    } catch (error) {
-        console.error('Error deleting shop:', error);
-    } finally {
-        loading.value = false;
-    }
+    });
 };
 
 // Event handlers
@@ -183,6 +187,16 @@ const onShopSaved = () => {
     showAddModal.value = false;
     showEditModal.value = false;
 };
+
+// Watch for flash messages
+watch(() => page.props.flash, (flash: any) => {
+    if (flash?.success) {
+        notify.success('Success', flash.success);
+    }
+    if (flash?.error) {
+        notify.error('Error', flash.error);
+    }
+}, { immediate: true, deep: true });
 
 // Lifecycle
 onMounted(() => {
