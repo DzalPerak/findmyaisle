@@ -18,6 +18,7 @@ class Shop extends Model
         'latitude',
         'longitude',
         'dxf_file_path',
+        'layout_file_path',
         'description',
     ];
 

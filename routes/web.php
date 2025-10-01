@@ -42,6 +42,9 @@ Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
         Route::get('/shops', [ShopController::class, 'index'])->name('api.shops.index');
         Route::post('/shops', [ShopController::class, 'store'])->name('api.shops.store');
         Route::put('/shops/{shop}', [ShopController::class, 'update'])->name('api.shops.update');
+        Route::put('/shops/{shop}/dxf', [ShopController::class, 'updateDxf'])->name('api.shops.update-dxf');
+        Route::get('/shops/{shop}/layout', [ShopController::class, 'getLayout'])->name('api.shops.get-layout');
+        Route::post('/shops/{shop}/layout', [ShopController::class, 'saveLayout'])->name('api.shops.save-layout');
         Route::delete('/shops/{shop}', [ShopController::class, 'destroy'])->name('api.shops.destroy');
     });
 });
