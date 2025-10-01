@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
+import { Modal } from 'flowbite';
 import axios from 'axios';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -13,90 +14,134 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const lists = ref<{ id: number; name: string; items: { id: number; name: string; qty: number }[] }[]>([]);
-const selectedList = ref<null | number>(null);
-const showListModal = ref(false);
-const showManageModal = ref(false);
-const showToast = ref(false);
-const toastType = ref<'success' | 'error'>('success');
-const toastMsg = ref('');
-const listName = ref('');
+// Data
 const products = ref([]);
+const lists = ref<{id: number, name: string, items: {id: number, name: string, qty: number}[]}[]>([]);
 const search = ref('');
 const quantities = ref<Record<number, number>>({});
+const listName = ref('');
+const selectedList = ref<null | number>(null);
+const editingList = ref<null | number | 'new'>(null);
+const notification = ref({ show: false, type: '', message: '' });
 let nextListId = 1;
 
-function openListModal() {
-    listName.value = '';
-    quantities.value = {};
-    showListModal.value = true;
+// Modal references
+let createListModal: Modal;
+let viewListModal: Modal;
+
+onMounted(async () => {
+    await fetchProducts();
+    
+    // Initialize Flowbite modals
+    await nextTick();
+    const createModalEl = document.getElementById('create-list-modal');
+    const viewModalEl = document.getElementById('view-list-modal');
+    
+    if (createModalEl) {
+        createListModal = new Modal(createModalEl);
+    }
+    if (viewModalEl) {
+        viewListModal = new Modal(viewModalEl);
+    }
+});
+
+async function fetchProducts() {
+    try {
+        const res = await axios.get('/api/products');
+        products.value = res.data;
+    } catch (error) {
+        showNotification('error', 'Failed to load products');
+    }
 }
 
-function openManageModal(idx: number) {
+const filteredProducts = computed(() => {
+    if (!search.value) return products.value;
+    return products.value.filter(p => p.name.toLowerCase().includes(search.value.toLowerCase()));
+});
+
+function showNotification(type: string, message: string) {
+    notification.value = { show: true, type, message };
+    setTimeout(() => {
+        notification.value.show = false;
+    }, 5000);
+}
+
+function startNewList() {
+    listName.value = '';
+    quantities.value = {};
+    search.value = '';
+    editingList.value = 'new';
+    createListModal?.show();
+}
+
+function editList(idx: number) {
     const list = lists.value[idx];
     listName.value = list.name;
     quantities.value = {};
     for (const item of list.items) {
         quantities.value[item.id] = item.qty;
     }
-    selectedList.value = idx;
-    showManageModal.value = true;
-}
-
-function closeModals() {
-    showListModal.value = false;
-    showManageModal.value = false;
-}
-
-function showNotification(msg: string, type: 'success' | 'error') {
-    toastMsg.value = msg;
-    toastType.value = type;
-    showToast.value = true;
-    setTimeout(() => (showToast.value = false), 2500);
+    search.value = '';
+    editingList.value = idx;
+    viewListModal?.hide();
+    createListModal?.show();
 }
 
 function saveList() {
     const items = products.value
-        .filter((p) => (quantities.value[p.id] || 0) > 0)
-        .map((p) => ({ id: p.id, name: p.name, qty: quantities.value[p.id] }));
-    if (!listName.value.trim() || items.length === 0) {
-        showNotification('List name and at least one product required', 'error');
+        .filter(p => (quantities.value[p.id] || 0) > 0)
+        .map(p => ({ id: p.id, name: p.name, qty: quantities.value[p.id] }));
+    
+    if (!listName.value.trim()) {
+        showNotification('error', 'Please enter a list name');
         return;
     }
-    lists.value.push({ id: nextListId++, name: listName.value, items });
-    showNotification('List created!', 'success');
-    closeModals();
-}
-
-function updateList() {
-    if (selectedList.value === null) return;
-    const items = products.value
-        .filter((p) => (quantities.value[p.id] || 0) > 0)
-        .map((p) => ({ id: p.id, name: p.name, qty: quantities.value[p.id] }));
-    if (!listName.value.trim() || items.length === 0) {
-        showNotification('List name and at least one product required', 'error');
+    
+    if (items.length === 0) {
+        showNotification('error', 'Please add at least one product');
         return;
     }
-    lists.value[selectedList.value].name = listName.value;
-    lists.value[selectedList.value].items = items;
-    showNotification('List updated!', 'success');
-    closeModals();
-}
-
-function removeList(idx: number) {
-    lists.value.splice(idx, 1);
-    if (selectedList.value === idx) selectedList.value = null;
-    showNotification('List removed', 'success');
-}
-
-function removeItemFromList(listIdx: number, itemId: number) {
-    const list = lists.value[listIdx];
-    list.items = list.items.filter((i) => i.id !== itemId);
-    showNotification('Item removed', 'success');
+    
+    try {
+        if (editingList.value === 'new') {
+            lists.value.push({ id: nextListId++, name: listName.value, items });
+            showNotification('success', 'Shopping list created successfully');
+        } else if (typeof editingList.value === 'number') {
+            const idx = editingList.value;
+            lists.value[idx].name = listName.value;
+            lists.value[idx].items = items;
+            showNotification('success', 'Shopping list updated successfully');
+        }
+        createListModal?.hide();
+        editingList.value = null;
+    } catch (error) {
+        showNotification('error', 'Failed to save shopping list');
+    }
 }
 
 function selectList(idx: number) {
     selectedList.value = idx;
+    viewListModal?.show();
+}
+
+function removeList(idx: number) {
+    try {
+        lists.value.splice(idx, 1);
+        if (selectedList.value === idx) selectedList.value = null;
+        showNotification('success', 'Shopping list deleted successfully');
+    } catch (error) {
+        showNotification('error', 'Failed to delete shopping list');
+    }
+}
+
+function removeItemFromList(listIdx: number, itemId: number) {
+    try {
+        const list = lists.value[listIdx];
+        list.items = list.items.filter(i => i.id !== itemId);
+        showNotification('success', 'Item removed from list');
+    } catch (error) {
+        showNotification('error', 'Failed to remove item');
+    }
 }
 
 function increment(id: number) {
@@ -107,274 +152,175 @@ function decrement(id: number) {
     if (quantities.value[id]) quantities.value[id]--;
 }
 
-const filteredProducts = computed(() =>
-    !search.value
-        ? products.value
-        : products.value.filter((p) => p.name.toLowerCase().includes(search.value.toLowerCase()))
-);
-
-onMounted(async () => {
-    const res = await axios.get('/api/products');
-    products.value = res.data;
-});
+function cancelEdit() {
+    createListModal?.hide();
+    editingList.value = null;
+}
 </script>
 
 <template>
     <Head title="Shopping Lists" />
+
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col md:flex-row gap-6 w-full p-4">
-            <!-- Lists -->
-            <div class="w-full md:w-1/3">
-                <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-bold">My Shopping Lists</h2>
-                        <button
-                            data-modal-target="add-list-modal"
-                            data-modal-toggle="add-list-modal"
-                            @click="openListModal"
-                            type="button"
-                            class="not-dark:bg-blue-700 dark:bg-blue-600 text-white font-medium rounded-lg text-sm px-4 py-2 text-center"
-                        >
-                            Add List
+        <!-- Notification -->
+        <div v-if="notification.show" 
+             :class="[
+                'fixed top-4 right-4 z-50 p-4 mb-4 text-sm rounded-lg',
+                notification.type === 'success' ? 'text-green-800 not-dark:bg-green-50 dark:bg-gray-800 dark:text-green-400' : 'text-red-800 not-dark:bg-red-50 dark:bg-gray-800 dark:text-red-400'
+             ]" 
+             role="alert">
+            <span class="font-medium">{{ notification.type === 'success' ? 'Success!' : 'Error!' }}</span>
+            {{ notification.message }}
+        </div>
+
+        <div class="p-4">
+            <!-- Header -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">My Shopping Lists</h1>
+                    <button @click="startNewList" 
+                            type="button" 
+                            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+                        Create New List
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lists Grid -->
+            <div v-if="lists.length === 0" class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 not-dark:text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium not-dark:text-gray-900 dark:text-white">No shopping lists</h3>
+                <p class="mt-1 text-sm not-dark:text-gray-500 dark:text-gray-400">Get started by creating a new shopping list.</p>
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div v-for="(list, idx) in lists" :key="list.id" 
+                     class="max-w-sm p-6 not-dark:bg-white border not-dark:border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:shadow-lg transition-shadow">
+                    <h5 @click="selectList(idx)" class="mb-2 text-2xl font-bold tracking-tight not-dark:text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-500">
+                        {{ list.name }}
+                    </h5>
+                    <p class="mb-3 font-normal not-dark:text-gray-700 dark:text-gray-400">
+                        {{ list.items.length }} items
+                    </p>
+                    <div class="flex gap-2">
+                        <button @click="selectList(idx)" 
+                                class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                            View
+                        </button>
+                        <button @click="removeList(idx)" 
+                                class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-red-700 rounded-lg hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800">
+                            Delete
                         </button>
                     </div>
-                    <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <li
-                            v-for="(list, idx) in lists"
-                            :key="list.id"
-                            class="flex items-center justify-between py-2"
-                        >
-                            <span @click="selectList(idx)" class="cursor-pointer hover:underline">{{ list.name }}</span>
-                            <button
-                                @click="removeList(idx)"
-                                type="button"
-                                class="not-dark:bg-red-600 dark:bg-red-700 text-white font-medium rounded-lg text-xs px-3 py-1"
-                            >
-                                Remove
-                            </button>
-                        </li>
-                    </ul>
                 </div>
             </div>
-            <!-- List Details -->
-            <div v-if="selectedList !== null" class="w-full md:w-2/3">
-                <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold">{{ lists[selectedList].name }}</h3>
-                        <button
-                            data-modal-target="manage-list-modal"
-                            data-modal-toggle="manage-list-modal"
-                            @click="openManageModal(selectedList)"
-                            type="button"
-                            class="not-dark:bg-green-600 dark:bg-green-700 text-white font-medium rounded-lg text-sm px-4 py-2"
-                        >
-                            Manage
+        </div>
+
+        <!-- Create/Edit List Modal -->
+        <div id="create-list-modal" tabindex="-1" aria-hidden="true" 
+             class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+            <div class="relative p-4 w-full max-w-4xl max-h-full">
+                <div class="relative not-dark:bg-white rounded-lg shadow dark:bg-gray-700">
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t not-dark:border-gray-200 dark:border-gray-600">
+                        <h3 class="text-xl font-semibold not-dark:text-gray-900 dark:text-white">
+                            {{ editingList === 'new' ? 'Create New List' : 'Edit List' }}
+                        </h3>
+                        <button @click="cancelEdit" type="button" 
+                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white">
+                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                            </svg>
                         </button>
                     </div>
-                    <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <li
-                            v-for="item in lists[selectedList].items"
-                            :key="item.id"
-                            class="flex items-center justify-between py-2"
-                        >
-                            <span>{{ item.name }} <span v-if="item.qty > 1">x{{ item.qty }}</span></span>
-                            <button
-                                @click="removeItemFromList(selectedList, item.id)"
-                                type="button"
-                                class="not-dark:bg-red-600 dark:bg-red-700 text-white font-medium rounded-lg text-xs px-3 py-1"
-                            >
-                                Remove
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- Add List Modal -->
-        <div
-            v-if="showListModal"
-            id="add-list-modal"
-            tabindex="-1"
-            aria-hidden="true"
-            class="fixed top-0 left-0 right-0 z-50 flex justify-center items-center w-full h-full bg-black/50"
-        >
-            <div class="relative w-full max-w-md not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <button
-                    type="button"
-                    @click="closeModals"
-                    class="absolute top-2 right-2 not-dark:text-gray-400 dark:text-gray-300 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
-                    data-modal-hide="add-list-modal"
-                >
-                    <svg
-                        class="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                    >
-                        <path
-                            fill-rule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                        ></path>
-                    </svg>
-                </button>
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Create Shopping List</h3>
-                <input
-                    v-model="listName"
-                    placeholder="List name"
-                    class="not-dark:bg-gray-50 not-dark:text-gray-600 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 mb-4"
-                />
-                <input
-                    v-model="search"
-                    placeholder="Search products..."
-                    class="not-dark:bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 mb-4"
-                />
-                <div class="max-h-48 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700 mb-4">
-                    <div
-                        v-for="product in filteredProducts"
-                        :key="product.id"
-                        class="flex items-center justify-between py-2"
-                    >
-                        <span>{{ product.name }}</span>
-                        <div class="flex items-center gap-2">
-                            <button
-                                @click="decrement(product.id)"
-                                type="button"
-                                class="not-dark:bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2 py-1"
-                            >
-                                -
-                            </button>
-                            <span class="w-6 text-center">{{ quantities[product.id] || 0 }}</span>
-                            <button
-                                @click="increment(product.id)"
-                                type="button"
-                                class="not-dark:bg-blue-600 dark:bg-blue-700 text-white rounded-lg px-2 py-1"
-                            >
-                                +
-                            </button>
+                    <div class="p-4 md:p-5 space-y-4">
+                        <div>
+                            <label class="block mb-2 text-sm font-medium not-dark:text-gray-900 dark:text-white">List Name</label>
+                            <input v-model="listName" type="text" 
+                                   class="bg-gray-50 border border-gray-300 not-dark:text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
+                                   placeholder="Enter list name" required>
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-medium not-dark:text-gray-900 dark:text-white">Search Products</label>
+                            <input v-model="search" type="text" 
+                                   class="bg-gray-50 border border-gray-300 not-dark:text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
+                                   placeholder="Search products...">
+                        </div>
+                        <div class="max-h-64 overflow-y-auto">
+                            <div v-for="product in filteredProducts" :key="product.id" 
+                                 class="flex items-center justify-between py-2 px-3 border-b not-dark:border-gray-200 dark:border-gray-600">
+                                <span class="not-dark:text-gray-900 dark:text-white">{{ product.name }}</span>
+                                <div class="flex items-center gap-2">
+                                    <button @click="decrement(product.id)" 
+                                            class="text-white bg-gray-700 hover:bg-gray-800 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-2 py-1 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800">
+                                        -
+                                    </button>
+                                    <span class="w-6 text-center not-dark:text-gray-900 dark:text-white">{{ quantities[product.id] || 0 }}</span>
+                                    <button @click="increment(product.id)" 
+                                            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-2 py-1 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+                                        +
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <button
-                    @click="saveList"
-                    type="button"
-                    class="w-full not-dark:bg-blue-700 dark:bg-blue-600 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center"
-                >
-                    Create List
-                </button>
-            </div>
-        </div>
-
-        <!-- Manage List Modal -->
-        <div
-            v-if="showManageModal"
-            id="manage-list-modal"
-            tabindex="-1"
-            aria-hidden="true"
-            class="fixed top-0 left-0 right-0 z-50 flex justify-center items-center w-full h-full bg-black/50"
-        >
-            <div class="relative w-full max-w-md not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <button
-                    type="button"
-                    @click="closeModals"
-                    class="absolute top-2 right-2 not-dark:text-gray-400 dark:text-gray-300 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
-                    data-modal-hide="manage-list-modal"
-                >
-                    <svg
-                        class="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                    >
-                        <path
-                            fill-rule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                        ></path>
-                    </svg>
-                </button>
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Manage Shopping List</h3>
-                <input
-                    v-model="listName"
-                    placeholder="List name"
-                    class="not-dark:bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 mb-4"
-                />
-                <input
-                    v-model="search"
-                    placeholder="Search products..."
-                    class="not-dark:bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 mb-4"
-                />
-                <div class="max-h-48 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700 mb-4">
-                    <div
-                        v-for="product in filteredProducts"
-                        :key="product.id"
-                        class="flex items-center justify-between py-2"
-                    >
-                        <span>{{ product.name }}</span>
-                        <div class="flex items-center gap-2">
-                            <button
-                                @click="decrement(product.id)"
-                                type="button"
-                                class="not-dark:bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2 py-1"
-                            >
-                                -
-                            </button>
-                            <span class="w-6 text-center">{{ quantities[product.id] || 0 }}</span>
-                            <button
-                                @click="increment(product.id)"
-                                type="button"
-                                class="not-dark:bg-blue-600 dark:bg-blue-700 text-white rounded-lg px-2 py-1"
-                            >
-                                +
-                            </button>
-                        </div>
+                    <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+                        <button @click="saveList" type="button" 
+                                class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                            {{ editingList === 'new' ? 'Create List' : 'Update List' }}
+                        </button>
+                        <button @click="cancelEdit" type="button" 
+                                class="py-2.5 px-5 ms-3 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                            Cancel
+                        </button>
                     </div>
                 </div>
-                <button
-                    @click="updateList"
-                    type="button"
-                    class="w-full not-dark:bg-green-600 dark:bg-green-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center"
-                >
-                    Update List
-                </button>
             </div>
         </div>
 
-        <!-- Toast Notification -->
-        <div v-if="showToast" class="fixed top-6 right-6 z-50">
-            <div
-                :class="
-                    toastType === 'success'
-                        ? 'not-dark:bg-green-100 not-dark:text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'not-dark:bg-red-100 not-dark:text-red-800 dark:bg-red-900 dark:text-red-200'
-                "
-                class="flex items-center p-4 mb-4 text-sm rounded-lg shadow"
-                role="alert"
-            >
-                <svg
-                    v-if="toastType === 'success'"
-                    class="inline w-5 h-5 mr-3"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                >
-                    <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 00-1.414 0L9 11.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l7-7a1 1 0 000-1.414z"
-                        clip-rule="evenodd"
-                    ></path>
-                </svg>
-                <svg
-                    v-else
-                    class="inline w-5 h-5 mr-3"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                >
-                    <path
-                        fill-rule="evenodd"
-                        d="M18 13a1 1 0 01-1 1H7a1 1 0 110-2h9a1 1 0 011 1zm-1-5a1 1 0 00-1-1H7a1 1 0 100 2h9a1 1 0 001-1zM7 17a1 1 0 100-2h6a1 1 0 100 2H7z"
-                        clip-rule="evenodd"
-                    ></path>
-                </svg>
-                <span class="font-medium">{{ toastMsg }}</span>
+        <!-- View List Modal -->
+        <div id="view-list-modal" tabindex="-1" aria-hidden="true" 
+             class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+            <div class="relative p-4 w-full max-w-3xl max-h-full">
+                <div class="relative not-dark:bg-white rounded-lg shadow dark:bg-gray-700">
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t not-dark:border-gray-200 dark:border-gray-600">
+                        <h3 class="text-xl font-semibold not-dark:text-gray-900 dark:text-white">
+                            {{ selectedList !== null ? lists[selectedList]?.name : '' }}
+                        </h3>
+                        <button @click="viewListModal?.hide()" type="button" 
+                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white">
+                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-4 md:p-5 space-y-4">
+                        <div v-if="selectedList !== null && lists[selectedList]?.items?.length === 0" 
+                             class="text-center py-4 not-dark:text-gray-500 dark:text-gray-400">
+                            No items in this list
+                        </div>
+                        <div v-else-if="selectedList !== null" class="space-y-2">
+                            <div v-for="item in lists[selectedList]?.items" :key="item.id" 
+                                 class="flex items-center justify-between py-2 px-3 not-dark:bg-gray-50 dark:bg-gray-600 rounded-lg">
+                                <span class="not-dark:text-gray-900 dark:text-white">
+                                    {{ item.name }} 
+                                    <span v-if="item.qty > 1" class="text-sm not-dark:text-gray-500 dark:text-gray-400">x{{ item.qty }}</span>
+                                </span>
+                                <button @click="removeItemFromList(selectedList, item.id)" 
+                                        class="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-2 py-1 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none dark:focus:ring-red-800">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+                        <button v-if="selectedList !== null" @click="editList(selectedList)" type="button" 
+                                class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800">
+                            Add Products
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </AppLayout>
