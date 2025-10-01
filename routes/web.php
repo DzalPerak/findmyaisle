@@ -26,6 +26,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ShoppingListController;
 Route::get('/api/products', [ProductController::class, 'index'])->middleware(['auth', 'verified']);
 
-Route::get('/api/shopping-list', [ShoppingListController::class, 'index'])->middleware(['auth', 'verified']);
-Route::post('/api/shopping-list', [ShoppingListController::class, 'store'])->middleware(['auth', 'verified']);
-Route::delete('/api/shopping-list/{id}', [ShoppingListController::class, 'destroy'])->middleware(['auth', 'verified']);
+Route::get('/api/shopping-lists', [ShoppingListController::class, 'index'])->middleware(['auth', 'verified']);
+Route::post('/api/shopping-lists', [ShoppingListController::class, 'store'])->middleware(['auth', 'verified']);
+Route::put('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'update'])->middleware(['auth', 'verified']);
+Route::delete('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'destroy'])->middleware(['auth', 'verified']);
+Route::delete('/api/shopping-lists/{shoppingList}/items', [ShoppingListController::class, 'removeItem'])->middleware(['auth', 'verified']);

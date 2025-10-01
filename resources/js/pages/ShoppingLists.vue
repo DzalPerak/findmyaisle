@@ -23,7 +23,6 @@ const listName = ref('');
 const selectedList = ref<null | number>(null);
 const editingList = ref<null | number | 'new'>(null);
 const notification = ref({ show: false, type: '', message: '' });
-let nextListId = 1;
 
 // Modal references
 let createListModal: Modal;
@@ -31,6 +30,7 @@ let viewListModal: Modal;
 
 onMounted(async () => {
     await fetchProducts();
+    await fetchLists();
     
     // Initialize Flowbite modals
     await nextTick();
@@ -51,6 +51,15 @@ async function fetchProducts() {
         products.value = res.data;
     } catch (error) {
         showNotification('error', 'Failed to load products');
+    }
+}
+
+async function fetchLists() {
+    try {
+        const res = await axios.get('/api/shopping-lists');
+        lists.value = res.data;
+    } catch (error) {
+        showNotification('error', 'Failed to load shopping lists');
     }
 }
 
@@ -87,10 +96,10 @@ function editList(idx: number) {
     createListModal?.show();
 }
 
-function saveList() {
+async function saveList() {
     const items = products.value
         .filter(p => (quantities.value[p.id] || 0) > 0)
-        .map(p => ({ id: p.id, name: p.name, qty: quantities.value[p.id] }));
+        .map(p => ({ id: p.id, qty: quantities.value[p.id] }));
     
     if (!listName.value.trim()) {
         showNotification('error', 'Please enter a list name');
@@ -104,14 +113,21 @@ function saveList() {
     
     try {
         if (editingList.value === 'new') {
-            lists.value.push({ id: nextListId++, name: listName.value, items });
+            await axios.post('/api/shopping-lists', {
+                name: listName.value,
+                items: items
+            });
             showNotification('success', 'Shopping list created successfully');
         } else if (typeof editingList.value === 'number') {
-            const idx = editingList.value;
-            lists.value[idx].name = listName.value;
-            lists.value[idx].items = items;
+            const listId = lists.value[editingList.value].id;
+            await axios.put(`/api/shopping-lists/${listId}`, {
+                name: listName.value,
+                items: items
+            });
             showNotification('success', 'Shopping list updated successfully');
         }
+        
+        await fetchLists();
         createListModal?.hide();
         editingList.value = null;
     } catch (error) {
@@ -124,9 +140,11 @@ function selectList(idx: number) {
     viewListModal?.show();
 }
 
-function removeList(idx: number) {
+async function removeList(idx: number) {
     try {
-        lists.value.splice(idx, 1);
+        const listId = lists.value[idx].id;
+        await axios.delete(`/api/shopping-lists/${listId}`);
+        await fetchLists();
         if (selectedList.value === idx) selectedList.value = null;
         showNotification('success', 'Shopping list deleted successfully');
     } catch (error) {
@@ -134,10 +152,13 @@ function removeList(idx: number) {
     }
 }
 
-function removeItemFromList(listIdx: number, itemId: number) {
+async function removeItemFromList(listIdx: number, itemId: number) {
     try {
-        const list = lists.value[listIdx];
-        list.items = list.items.filter(i => i.id !== itemId);
+        const listId = lists.value[listIdx].id;
+        await axios.delete(`/api/shopping-lists/${listId}/items`, {
+            data: { product_id: itemId }
+        });
+        await fetchLists();
         showNotification('success', 'Item removed from list');
     } catch (error) {
         showNotification('error', 'Failed to remove item');
