@@ -199,6 +199,32 @@ class ShopController extends Controller
     }
 
     /**
+     * Get saved layout data for a specific shop.
+     */
+    public function getLayout(Shop $shop): JsonResponse
+    {
+        // Check if the shop has a layout file with metadata
+        $layoutPath = 'shops/' . $shop->id . '/layout.json';
+        
+        if (!Storage::disk('public')->exists($layoutPath)) {
+            return response()->json([
+                'message' => 'No saved layout data found'
+            ], 404);
+        }
+        
+        try {
+            $layoutData = json_decode(Storage::disk('public')->get($layoutPath), true);
+            
+            return response()->json($layoutData);
+        } catch (\Exception $e) {
+            \Log::error('Error loading layout data: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to load layout data'
+            ], 500);
+        }
+    }
+
+    /**
      * Save layout data for a specific shop by converting back to DXF format.
      */
     public function saveLayout(Request $request, Shop $shop): JsonResponse
@@ -232,6 +258,11 @@ class ShopController extends Controller
             $filename = 'shops/' . $shop->id . '/layout_edited_' . time() . '.dxf';
             Storage::disk('public')->put($filename, $dxfContent);
 
+            // Save layout metadata (waypoints, etc.) as JSON file
+            $layoutJsonPath = 'shops/' . $shop->id . '/layout.json';
+            $layoutMetadata = $request->all(); // Save full request data including metadata
+            Storage::disk('public')->put($layoutJsonPath, json_encode($layoutMetadata, JSON_PRETTY_PRINT));
+
             // Update shop record with new DXF file reference
             $shop->update([
                 'dxf_file_path' => $filename,
@@ -240,12 +271,14 @@ class ShopController extends Controller
 
             \Log::info('Layout saved as DXF successfully', [
                 'shop_id' => $shop->id,
-                'filename' => $filename
+                'filename' => $filename,
+                'layout_json' => $layoutJsonPath
             ]);
 
             return response()->json([
                 'message' => 'Layout saved successfully',
-                'dxf_file' => $filename
+                'dxf_file' => $filename,
+                'layout_data' => $layoutJsonPath
             ]);
             
         } catch (\Exception $e) {
@@ -262,21 +295,36 @@ class ShopController extends Controller
      */
     private function convertToDxf(array $lineSegments): string
     {
+        \Log::info('Converting to DXF', ['line_segment_count' => count($lineSegments)]);
+        
         $dxf = "0\nSECTION\n2\nENTITIES\n";
         
         foreach ($lineSegments as $segment) {
             // Handle both data formats: {x1,y1,x2,y2} and {start:{x,y,z}, end:{x,y,z}}
             if (isset($segment['start']) && isset($segment['end'])) {
-                $x1 = $segment['start']['x'];
-                $y1 = $segment['start']['y'];
-                $x2 = $segment['end']['x'];
-                $y2 = $segment['end']['y'];
+                $transformedX1 = $segment['start']['x'];
+                $transformedY1 = $segment['start']['y'];
+                $transformedX2 = $segment['end']['x'];
+                $transformedY2 = $segment['end']['y'];
             } else {
-                $x1 = $segment['x1'];
-                $y1 = $segment['y1'];
-                $x2 = $segment['x2'];
-                $y2 = $segment['y2'];
+                $transformedX1 = $segment['x1'];
+                $transformedY1 = $segment['y1'];
+                $transformedX2 = $segment['x2'];
+                $transformedY2 = $segment['y2'];
             }
+            
+            // Apply inverse transformation to restore original DXF coordinates
+            // Frontend applies: (x,y) → (-y, -x)
+            // So we need inverse: (x,y) → (-y, -x) (same transformation, it's self-inverse)
+            $x1 = -$transformedY1;
+            $y1 = -$transformedX1;
+            $x2 = -$transformedY2;
+            $y2 = -$transformedX2;
+            
+            \Log::debug('DXF Coordinate transformation', [
+                'original' => ['x1' => $transformedX1, 'y1' => $transformedY1, 'x2' => $transformedX2, 'y2' => $transformedY2],
+                'restored' => ['x1' => $x1, 'y1' => $y1, 'x2' => $x2, 'y2' => $y2]
+            ]);
             
             // Add LINE entity
             $dxf .= "0\nLINE\n";

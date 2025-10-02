@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from "vue";
+import { onMounted, watch, ref, reactive } from "vue";
 import { Modal } from 'flowbite';
 import { useAppearance } from '@/composables/useAppearance';
 import { loadDxfFile } from "../pathfinder/dxf_loader.js";
@@ -41,7 +41,10 @@ let grid = [];
 let lineSegments = [];
 let bounds = null;
 let useOnDemandRendering = false;
-let waypoints = [];
+let waypoints = []; // Array of {id, name, x, y, selected} objects
+let waypointCounter = 1; // Counter for unique waypoint IDs
+let selectedWaypoints = new Set(); // Track selected waypoint IDs
+const contextMenu = reactive({ visible: false, x: 0, y: 0, waypointId: null });
 let finder = createFinder();
 
 // For pathfinding when using on-demand rendering
@@ -260,6 +263,9 @@ async function loadDxfFromShop(shopId) {
         // Reset viewport to show entire drawing
         resetViewport();
 
+        // Load any saved layout data (waypoints, etc.) after DXF is loaded
+        await loadSavedLayoutData(shopId);
+
         showLoadingModal("Drawing floor plan...");
         setTimeout(() => {
             drawGrid();
@@ -282,6 +288,72 @@ async function loadDxfFromShop(shopId) {
     }
 }
 
+async function loadSavedLayoutData(shopId) {
+    if (!shopId) return;
+    
+    try {
+        console.log("Loading saved layout data for shop ID:", shopId);
+        
+        const response = await fetch(`/api/shops/${shopId}/layout`);
+        
+        if (!response.ok) {
+            // If no saved layout exists, that's OK - just continue with DXF only
+            if (response.status === 404) {
+                console.log("No saved layout data found, using DXF only");
+                return;
+            }
+            throw new Error(`Failed to fetch saved layout: ${response.statusText}`);
+        }
+        
+        const savedData = await response.json();
+        console.log("Loaded saved layout data:", savedData);
+        
+        // Restore waypoints if they exist in saved data (check both locations)
+        let waypointsData = null;
+        let waypointCounterData = null;
+        
+        if (savedData.metadata && savedData.metadata.waypoints) {
+            // Waypoints stored in metadata (new format)
+            waypointsData = savedData.metadata.waypoints;
+            waypointCounterData = savedData.metadata.waypointCounter;
+        } else if (savedData.waypoints) {
+            // Waypoints stored at root level (fallback)
+            waypointsData = savedData.waypoints;
+            waypointCounterData = savedData.waypointCounter;
+        }
+        
+        if (waypointsData && Array.isArray(waypointsData)) {
+            waypoints.length = 0; // Clear existing waypoints
+            waypoints.push(...waypointsData);
+            
+            // Restore waypoint counter
+            if (waypointCounterData) {
+                waypointCounter = waypointCounterData;
+            }
+            
+            // Clear any selection state from saved waypoints
+            selectedWaypoints.clear();
+            waypoints.forEach(wp => wp.selected = false);
+            
+            console.log(`Restored ${waypoints.length} waypoints`);
+            
+            showNotification(
+                "Layout Restored",
+                `Loaded ${waypoints.length} saved waypoint${waypoints.length !== 1 ? 's' : ''}`,
+                "success"
+            );
+        }
+        
+        // If saved layout has modified line segments, we could restore those too
+        // but for now we'll keep the DXF as the source of truth for walls
+        
+    } catch (error) {
+        console.error("Error loading saved layout data:", error);
+        // Don't show error notification - this is optional data
+        // The DXF file is the primary source, saved layout is supplementary
+    }
+}
+
 onMounted(() => {
     canvas = document.getElementById("gridCanvas");
     ctx = canvas.getContext("2d");
@@ -294,8 +366,11 @@ onMounted(() => {
         loadDxfFromShop(props.shopId);
     }
 
-    document.getElementById("dxfFile").addEventListener("change", async (e) => {
-        const file = e.target.files[0];
+    const dxfFileElement = document.getElementById("dxfFile");
+    if (dxfFileElement) {
+        dxfFileElement.addEventListener("change", async (e) => {
+            const target = e.target as HTMLInputElement;
+            const file = target.files?.[0];
 
         if (!file) {
             return;
@@ -370,31 +445,49 @@ onMounted(() => {
             );
         }
     });
+    }
 
-    document.getElementById("addWpBtn").addEventListener("click", () => {
-        toggleWaypointMode();
-    });
+    const addWpBtn = document.getElementById("addWpBtn");
+    if (addWpBtn) {
+        addWpBtn.addEventListener("click", () => {
+            toggleWaypointMode();
+        });
+    }
 
-    document.getElementById("clearWpBtn").addEventListener("click", () => {
+    const clearWpBtn = document.getElementById("clearWpBtn");
+    if (clearWpBtn) {
+        clearWpBtn.addEventListener("click", () => {
         const waypointCount = waypoints.length;
         waypoints = [];
+        waypointCounter = 1;
+        selectedWaypoints.clear();
+        contextMenu.visible = false;
         computedPath = [];
         waypointOrder = [];
         pathDistanceInfo = null;
         console.log("All waypoints cleared");
         drawGrid();
-        showNotification(
-            "Waypoints Cleared",
-            `Removed ${waypointCount} waypoint${waypointCount !== 1 ? "s" : ""}`,
-            "info"
-        );
+            showNotification(
+                "Waypoints Cleared",
+                `Removed ${waypointCount} waypoint${waypointCount !== 1 ? "s" : ""}`,
+                "info"
+            );
+        });
+    }
+
+    // Wall buffer control - separate input and change events
+    const wallBufferSlider = document.getElementById("wallBufferSlider");
+    if (wallBufferSlider) {
+        // Update display while dragging (no notification)
+        wallBufferSlider.addEventListener("input", (e) => {
+        const target = e.target as HTMLInputElement;
+        wallBuffer = parseInt(target.value);
+        const valueDisplay = document.getElementById("wallBufferValue");
+        if (valueDisplay) valueDisplay.textContent = wallBuffer.toString();
     });
-
-    // Wall buffer control
-    document.getElementById("wallBufferSlider").addEventListener("input", (e) => {
-        wallBuffer = parseInt(e.target.value);
-        document.getElementById("wallBufferValue").textContent = wallBuffer;
-
+    
+    // Update pathfinding and show notification only when finished (mouseup/touchend)
+    const handleWallBufferChange = () => {
         // Regenerate the pathfinding grid with the new wall buffer
         regeneratePathfindingGrid();
         
@@ -411,20 +504,33 @@ onMounted(() => {
             `Wall buffer set to ${wallBuffer} cells`,
             "info"
         );
-    });
+    };
+    
+        wallBufferSlider.addEventListener("mouseup", handleWallBufferChange);
+        wallBufferSlider.addEventListener("touchend", handleWallBufferChange);
+    }
 
     // Wall editing controls
-    document.getElementById("editModeBtn").addEventListener("click", () => {
-        toggleEditingMode();
-    });
+    const editModeBtn = document.getElementById("editModeBtn");
+    if (editModeBtn) {
+        editModeBtn.addEventListener("click", () => {
+            toggleEditingMode();
+        });
+    }
 
-    document.getElementById("addWallBtn").addEventListener("click", () => {
-        setEditingTool('add');
-    });
+    const addWallBtn = document.getElementById("addWallBtn");
+    if (addWallBtn) {
+        addWallBtn.addEventListener("click", () => {
+            setEditingTool('add');
+        });
+    }
 
-    document.getElementById("removeWallBtn").addEventListener("click", () => {
-        setEditingTool('remove');
-    });
+    const removeWallBtn = document.getElementById("removeWallBtn");
+    if (removeWallBtn) {
+        removeWallBtn.addEventListener("click", () => {
+            setEditingTool('remove');
+        });
+    }
 
     // Mouse event handlers
     canvas.addEventListener("mousedown", (e) => {
@@ -636,15 +742,38 @@ onMounted(() => {
     });
 
     canvas.addEventListener("click", (e) => {
-        if (isAddingWaypoints && e.button === 0) {
-            // Only left click for waypoints
-            addWaypoint(e);
+        if (e.button === 0) { // Left click only
+            // Hide context menu if visible
+            contextMenu.visible = false;
+            
+            if (isAddingWaypoints) {
+                if (props.isUserMode) {
+                    // In user mode, select existing waypoints
+                    selectWaypointAtPosition(e);
+                } else {
+                    // In edit mode, add new waypoints
+                    addWaypoint(e);
+                }
+            }
         }
     });
 
-    // Prevent middle mouse button default behavior
+    // Handle right-click context menu
     canvas.addEventListener("contextmenu", (e) => {
-        e.preventDefault(); // Prevent right-click context menu
+        e.preventDefault(); // Prevent default context menu
+        
+        if (!props.isUserMode) {
+            // Show waypoint context menu if right-clicking on a waypoint
+            const waypoint = getWaypointAtPosition(e);
+            if (waypoint) {
+                contextMenu.visible = true;
+                contextMenu.x = e.clientX;
+                contextMenu.y = e.clientY;
+                contextMenu.waypointId = waypoint.id;
+            } else {
+                contextMenu.visible = false;
+            }
+        }
     });
 
     canvas.addEventListener("auxclick", (e) => {
@@ -654,12 +783,20 @@ onMounted(() => {
         }
     });
 
+    // Hide context menu when clicking outside
+    document.addEventListener("click", (e) => {
+        contextMenu.visible = false;
+    });
+
     // Keyboard event handlers
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             if (isAddingWaypoints) {
                 toggleWaypointMode();
             }
+            contextMenu.visible = false;
+            selectedWaypoints.clear();
+            drawGrid();
         }
     });
 
@@ -690,11 +827,17 @@ onMounted(() => {
         }
     });
 
-    document.getElementById("computePathBtn").addEventListener("click", () => {
-        if (waypoints.length < 2) {
+    const computePathBtn = document.getElementById("computePathBtn");
+    if (computePathBtn) {
+        computePathBtn.addEventListener("click", () => {
+            // In user mode, only use selected waypoints
+            const waypointsToUse = props.isUserMode ? waypoints.filter(wp => wp.selected || selectedWaypoints.has(wp.id)) : waypoints;
+        
+        if (waypointsToUse.length < 2) {
+            const modeText = props.isUserMode ? "selected waypoints" : "waypoints";
             showNotification(
                 "Insufficient Waypoints",
-                "At least 2 waypoints are required to compute a path",
+                `At least 2 ${modeText} are required to compute a path`,
                 "error"
             );
             return;
@@ -716,22 +859,22 @@ onMounted(() => {
         // Use setTimeout to allow the UI to update before starting heavy computation
         setTimeout(() => {
             // Scale waypoints if using a scaled pathfinding grid
-            let scaledWaypoints = waypoints;
+            let scaledWaypoints = waypointsToUse;
             if (useOnDemandRendering && pathfindingScaleFactor !== 1) {
-                scaledWaypoints = waypoints.map((wp) => [
-                    Math.round(wp[0] * pathfindingScaleFactor),
-                    Math.round(wp[1] * pathfindingScaleFactor),
+                scaledWaypoints = waypointsToUse.map((wp) => [
+                    Math.round(wp.x * pathfindingScaleFactor),
+                    Math.round(wp.y * pathfindingScaleFactor),
                 ]);
-                console.log("Original waypoints:", waypoints);
+                console.log("Original waypoints:", waypointsToUse);
                 console.log("Scaled waypoints for pathfinding:", scaledWaypoints);
                 console.log("Pathfinding scale factor:", pathfindingScaleFactor);
             } else {
                 // For normal rendering, convert world coordinates to grid coordinates
-                scaledWaypoints = waypoints.map((wp) => [
-                    Math.round(wp[0] - bounds.minX) + 2,
-                    Math.round(wp[1] - bounds.minY) + 2,
+                scaledWaypoints = waypointsToUse.map((wp) => [
+                    Math.round(wp.x - bounds.minX) + 2,
+                    Math.round(wp.y - bounds.minY) + 2,
                 ]);
-                console.log("Original waypoints:", waypoints);
+                console.log("Original waypoints:", waypointsToUse);
                 console.log("Converted waypoints for pathfinding:", scaledWaypoints);
             }
 
@@ -785,9 +928,8 @@ onMounted(() => {
                 }
 
                 // Check if smoothing is enabled
-                const isPathSmoothingEnabled = document.getElementById(
-                    "pathSmoothingCheckbox"
-                ).checked;
+                const smoothingElement = document.getElementById("pathSmoothingCheckbox") as HTMLInputElement;
+                const isPathSmoothingEnabled = smoothingElement ? smoothingElement.checked : false;
 
                 let fullPath = [];
 
@@ -868,25 +1010,29 @@ onMounted(() => {
                 );
             }
         }, 50); // Small delay to allow UI to update
-    });
+        });
+    }
 
     // Zoom and viewport controls
-    document.getElementById("resetViewBtn").addEventListener("click", () => {
+    const resetViewBtn = document.getElementById("resetViewBtn");
+    if (resetViewBtn) {
+        resetViewBtn.addEventListener("click", () => {
         resetViewport();
         drawGrid();
-        showNotification(
-            "View Reset",
-            "Viewport has been reset to show entire drawing",
-            "info"
-        );
-    });
+            showNotification(
+                "View Reset",
+                "Viewport has been reset to show entire drawing",
+                "info"
+            );
+        });
+    }
 
     // Set initial canvas cursor and viewport info
     canvas.style.cursor = "grab";
 
     // Update viewport info whenever drawing happens
     const originalDrawGrid = drawGrid;
-    drawGrid = function (...args) {
+    (drawGrid as any) = function (...args: any[]) {
         originalDrawGrid.apply(this, args);
         updateViewportInfo();
     };
@@ -899,10 +1045,100 @@ watch(() => props.shopId, (newShopId) => {
     }
 });
 
+// Waypoint interaction functions
+function getWaypointAtPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    
+    // Account for canvas scaling
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const scaledCanvasX = canvasX * scaleX;
+    const scaledCanvasY = canvasY * scaleY;
+    
+    // Convert canvas coordinates to world coordinates
+    const worldX = (scaledCanvasX - viewport.x) / viewport.zoom;
+    const worldY = (scaledCanvasY - viewport.y) / viewport.zoom;
+    
+    // Check if click is near any waypoint (within 20 world units)
+    const clickRadius = 20 / viewport.zoom; // Adjust click radius based on zoom
+    
+    for (const waypoint of waypoints) {
+        const distance = Math.sqrt(
+            Math.pow(worldX - waypoint.x, 2) + Math.pow(worldY - waypoint.y, 2)
+        );
+        if (distance <= clickRadius) {
+            return waypoint;
+        }
+    }
+    
+    return null;
+}
+
+function selectWaypointAtPosition(event) {
+    const waypoint = getWaypointAtPosition(event);
+    if (waypoint) {
+        // Toggle selection state
+        if (selectedWaypoints.has(waypoint.id)) {
+            selectedWaypoints.delete(waypoint.id);
+            waypoint.selected = false;
+        } else {
+            selectedWaypoints.add(waypoint.id);
+            waypoint.selected = true;
+        }
+        drawGrid();
+        
+        console.log(`Waypoint ${waypoint.id} "${waypoint.name}" ${waypoint.selected ? 'selected' : 'deselected'}`);
+        
+        const selectedCount = selectedWaypoints.size;
+        showNotification(
+            "Waypoint Selection",
+            `${selectedCount} waypoint${selectedCount !== 1 ? 's' : ''} selected`,
+            "info"
+        );
+    }
+}
+
+function renameWaypoint() {
+    const waypoint = waypoints.find(wp => wp.id === contextMenu.waypointId);
+    if (waypoint) {
+        const newName = prompt(`Enter new name for waypoint:`, waypoint.name);
+        if (newName && newName.trim()) {
+            waypoint.name = newName.trim();
+            drawGrid();
+            showNotification("Waypoint Renamed", `Renamed to "${waypoint.name}"`, "success");
+        }
+    }
+    contextMenu.visible = false;
+}
+
+function deleteWaypoint() {
+    const waypointIndex = waypoints.findIndex(wp => wp.id === contextMenu.waypointId);
+    if (waypointIndex >= 0) {
+        const waypoint = waypoints[waypointIndex];
+        if (confirm(`Delete waypoint "${waypoint.name}"?`)) {
+            waypoints.splice(waypointIndex, 1);
+            selectedWaypoints.delete(waypoint.id);
+            
+            // Clear any computed paths that might include this waypoint
+            computedPath = [];
+            waypointOrder = [];
+            pathDistanceInfo = null;
+            
+            drawGrid();
+            showNotification("Waypoint Deleted", `"${waypoint.name}" has been deleted`, "success");
+        }
+    }
+    contextMenu.visible = false;
+}
+
 // Export current layout data
 function exportLayoutData() {
     return {
         lineSegments: lineSegments,
+        waypoints: waypoints,
+        waypointCounter: waypointCounter,
         bounds: bounds,
         useOnDemandRendering: useOnDemandRendering,
         grid: grid
@@ -924,15 +1160,21 @@ async function saveLayoutToServer() {
 
     try {
         const layoutData = exportLayoutData();
+        console.log("Saving layout with waypoints:", layoutData.waypoints);
+        console.log("Current waypointCounter:", layoutData.waypointCounter);
         
         // Convert layout data to a format that can be sent to server
+        // Include lineSegments and bounds as required by server, plus waypoints
         const saveData = {
             lineSegments: layoutData.lineSegments,
             bounds: layoutData.bounds,
             metadata: {
                 useOnDemandRendering: layoutData.useOnDemandRendering,
                 wallBuffer: wallBuffer,
-                savedAt: new Date().toISOString()
+                savedAt: new Date().toISOString(),
+                // Store waypoint data in metadata
+                waypoints: layoutData.waypoints,
+                waypointCounter: layoutData.waypointCounter
             }
         };
 
@@ -946,23 +1188,38 @@ async function saveLayoutToServer() {
             },
             body: JSON.stringify(saveData)
         });
+        
+        console.log("Sent save data:", saveData);
 
         if (!response.ok) {
             let errorMessage = response.statusText;
             try {
                 const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
+                
+                // Handle CSRF token mismatch specifically
+                if (response.status === 419 || (errorData.message && errorData.message.includes('CSRF'))) {
+                    errorMessage = 'Session expired. Please refresh the page and try again.';
+                } else {
+                    errorMessage = errorData.message || errorMessage;
+                }
             } catch (e) {
                 // If we can't parse the JSON error, use the status text
+                if (response.status === 419) {
+                    errorMessage = 'Session expired. Please refresh the page and try again.';
+                }
             }
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
 
         const result = await response.json();
         hideLoadingModal();
+        
+        const waypointCount = waypoints.length;
+        console.log(`Successfully saved layout with ${waypointCount} waypoints`);
+        
         showNotification(
             "Layout Saved",
-            "Your layout changes have been saved as a new DXF file",
+            `Layout saved successfully with ${waypointCount} waypoint${waypointCount !== 1 ? 's' : ''}`,
             "success"
         );
         return true;
@@ -1564,10 +1821,17 @@ function toggleWaypointMode() {
         btn.textContent = "✋ Stop Adding";
         btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-blue-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-blue-500 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "crosshair";
-        console.log("Waypoint mode activated - click on the canvas to add waypoints");
+        const logMessage = props.isUserMode 
+            ? "Selection mode activated - click on waypoints to select them"
+            : "Waypoint mode activated - click on the canvas to add waypoints";
+        console.log(logMessage);
+        
+        const notificationText = props.isUserMode
+            ? "Click on waypoints to select them. Press ESC to exit."
+            : "Click on the canvas to add waypoints. Press ESC to exit.";
         showNotification(
-            "Waypoint Mode",
-            "Click on the canvas to add waypoints. Press ESC to exit.",
+            props.isUserMode ? "Selection Mode" : "Waypoint Mode",
+            notificationText,
             "info"
         );
     } else {
@@ -1577,7 +1841,8 @@ function toggleWaypointMode() {
         btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "grab";
         console.log("Waypoint mode deactivated");
-        showNotification("Waypoint Mode", "Waypoint adding mode disabled", "info");
+        const notificationText = props.isUserMode ? "Selection mode disabled" : "Waypoint adding mode disabled";
+        showNotification(props.isUserMode ? "Selection Mode" : "Waypoint Mode", notificationText, "info");
     }
 
     updateViewportInfo();
@@ -1613,11 +1878,18 @@ function addWaypoint(e) {
     const snappedX = Math.round(worldX);
     const snappedY = Math.round(worldY);
 
-    waypoints.push([snappedX, snappedY]);
+    // Create waypoint object with unique ID and default name
+    const waypoint = {
+        id: waypointCounter++,
+        name: `Waypoint ${waypointCounter - 1}`,
+        x: snappedX,
+        y: snappedY,
+        selected: false
+    };
+    
+    waypoints.push(waypoint);
     console.log(
-        `Added waypoint ${
-            waypoints.length - 1
-        } at (${snappedX}, ${snappedY}) [snapped from (${worldX.toFixed(
+        `Added waypoint ${waypoint.id} "${waypoint.name}" at (${snappedX}, ${snappedY}) [snapped from (${worldX.toFixed(
             2
         )}, ${worldY.toFixed(2)})]`
     );
@@ -1683,8 +1955,10 @@ function updateViewportInfo() {
 
     const modeIndicator = document.getElementById("modeIndicator");
     if (isAddingWaypoints) {
-        modeIndicator.textContent =
-            "WAYPOINT MODE: Click to add waypoints, ESC to exit, Middle-click to pan";
+        const modeText = props.isUserMode 
+            ? "SELECTION MODE: Click on waypoints to select them, ESC to exit, Middle-click to pan"
+            : "WAYPOINT MODE: Click to add waypoints, ESC to exit, Middle-click to pan";
+        modeIndicator.textContent = modeText;
         modeIndicator.style.color = "#f44336";
         modeIndicator.style.fontWeight = "bold";
     } else if (isEditingMode) {
@@ -1809,21 +2083,54 @@ function drawWaypointsAndPath() {
     // Draw waypoints
     const darkMode = isDarkMode();
     waypoints.forEach((wp, i) => {
-        const canvasPos = worldToCanvas(wp[0], wp[1]);
+        const canvasPos = worldToCanvas(wp.x, wp.y);
+        
         // Waypoint size that scales reasonably with zoom
         const baseSize = 8;
-        const minSize = 4;
+        const minSize = 6;
         const maxSize = 16;
         const size = Math.max(minSize, Math.min(maxSize, baseSize / Math.sqrt(viewport.zoom * 0.5)));
-
-        ctx.fillStyle = "blue";
-        ctx.fillRect(canvasPos.x - size / 2, canvasPos.y - size / 2, size, size);
-
-        // Use theme-aware text color for waypoint numbers
-        ctx.fillStyle = darkMode ? "#f9fafb" : "#111827"; // text-gray-50 : text-gray-900
-        const fontSize = Math.max(8, Math.min(14, 12 / Math.sqrt(viewport.zoom * 0.5)));
+        
+        // Draw waypoint circle with selection state
+        ctx.beginPath();
+        ctx.arc(canvasPos.x, canvasPos.y, size / 2, 0, 2 * Math.PI);
+        
+        // Fill color based on selection state
+        if (wp.selected || selectedWaypoints.has(wp.id)) {
+            ctx.fillStyle = "#10b981"; // green-500 for selected
+        } else {
+            ctx.fillStyle = "#3b82f6"; // blue-500 for normal
+        }
+        ctx.fill();
+        
+        // Add border
+        ctx.strokeStyle = darkMode ? "#ffffff" : "#000000";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw waypoint name below the circle
+        ctx.fillStyle = darkMode ? "#f9fafb" : "#111827";
+        const fontSize = Math.max(8, Math.min(12, 10 / Math.sqrt(viewport.zoom * 0.5)));
         ctx.font = `${fontSize}px Arial`;
-        ctx.fillText(i, canvasPos.x + size / 2, canvasPos.y - size / 2);
+        ctx.textAlign = "center";
+        
+        // Draw name with background for better visibility
+        const textMetrics = ctx.measureText(wp.name);
+        const textWidth = textMetrics.width;
+        const textHeight = fontSize;
+        const textX = canvasPos.x;
+        const textY = canvasPos.y + size / 2 + textHeight + 4;
+        
+        // Draw text background
+        ctx.fillStyle = darkMode ? "rgba(0, 0, 0, 0.7)" : "rgba(255, 255, 255, 0.8)";
+        ctx.fillRect(textX - textWidth / 2 - 2, textY - textHeight, textWidth + 4, textHeight + 2);
+        
+        // Draw text
+        ctx.fillStyle = darkMode ? "#f9fafb" : "#111827";
+        ctx.fillText(wp.name, textX, textY);
+        
+        // Reset text alignment
+        ctx.textAlign = "start";
     });
 
     // Draw path
@@ -1918,6 +2225,20 @@ function drawPath(path) {
             </span>
         </div>
 
+        <!-- Waypoint Context Menu -->
+        <div v-if="contextMenu.visible" 
+             :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+             class="fixed z-50 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 min-w-[120px]"
+             @click.stop>
+            <button @click="renameWaypoint" 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm">
+                Rename
+            </button>
+            <button @click="deleteWaypoint" 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-red-600 dark:text-red-400">
+                Delete
+            </button>
+        </div>
 
         <!-- Controls Section -->
         <div class="col-span-1 gap-1 p-1 not-dark:bg-gray-200 dark:bg-gray-800 rounded">

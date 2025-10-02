@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue';
-import { router } from '@inertiajs/vue3';
+// import { router } from '@inertiajs/vue3'; // Removed - using fetch instead
 import { notify } from '@/utils/notifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader, Upload, X } from 'lucide-vue-next';
+import { Loader, X } from 'lucide-vue-next';
 
 interface Shop {
     id?: number;
@@ -54,8 +54,7 @@ const form = ref<Shop>({
     description: '',
 });
 
-const selectedFile = ref<File | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
+
 const errors = ref<Record<string, string[]>>({});
 
 // Computed
@@ -93,42 +92,12 @@ const resetForm = () => {
         longitude: undefined,
         description: '',
     };
-    selectedFile.value = null;
     errors.value = {};
-    if (fileInputRef.value) {
-        fileInputRef.value.value = '';
-    }
 };
 
-const handleFileSelect = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    
-    if (file) {
-        // Validate file type
-        if (!file.name.toLowerCase().endsWith('.dxf')) {
-            errors.value.dxf_file = ['Please select a valid DXF file.'];
-            return;
-        }
-        
-        // Validate file size (10MB max)
-        if (file.size > 10 * 1024 * 1024) {
-            errors.value.dxf_file = ['File size must be less than 10MB.'];
-            return;
-        }
-        
-        selectedFile.value = file;
-        errors.value.dxf_file = [];
-    }
-};
 
-const removeFile = () => {
-    selectedFile.value = null;
-    if (fileInputRef.value) {
-        fileInputRef.value.value = '';
-    }
-    errors.value.dxf_file = [];
-};
+
+
 
 const validateForm = (): boolean => {
     const newErrors: Record<string, string[]> = {};
@@ -182,9 +151,7 @@ const submitForm = async () => {
             formData.append('description', form.value.description);
         }
         
-        if (selectedFile.value) {
-            formData.append('dxf_file', selectedFile.value);
-        }
+
 
         const url = isEditing.value ? `/api/shops/${props.shop!.id}` : '/api/shops';
         
@@ -193,36 +160,50 @@ const submitForm = async () => {
             formData.append('_method', 'PUT');
         }
 
-        // Use Inertia router for proper CSRF handling
-        router.post(url, formData, {
-            forceFormData: true,
-            onSuccess: (page) => {
-                // Show success notification
-                const actionText = isEditing.value ? 'updated' : 'created';
-                notify.success(
-                    `Shop ${actionText} successfully`,
-                    `${form.value.name} has been ${actionText}.`
-                );
-                emit('saved');
-                resetForm();
-            },
-            onError: (errorData) => {
-                if (errorData) {
-                    // Convert Inertia errors to our format
-                    const formattedErrors: Record<string, string[]> = {};
-                    Object.keys(errorData).forEach(key => {
-                        const value = errorData[key];
-                        formattedErrors[key] = Array.isArray(value) ? value : [value];
-                    });
-                    errors.value = formattedErrors;
-                } else {
-                    errors.value = { general: ['An error occurred while saving the shop.'] };
+        // Use fetch with proper CSRF handling
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            console.log('ShopForm CSRF token found:', csrfToken ? 'Yes' : 'No');
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || ''
                 }
-            },
-            onFinish: () => {
-                loading.value = false;
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                
+                // Handle validation errors
+                if (response.status === 422 && errorData.errors) {
+                    errors.value = errorData.errors;
+                } else if (response.status === 419 || (errorData.message && errorData.message.includes('CSRF'))) {
+                    errors.value = { general: ['Session expired. Please refresh the page and try again.'] };
+                } else {
+                    errors.value = { general: [errorData.message || 'An error occurred while saving the shop.'] };
+                }
+                return;
             }
-        });
+            
+            // Success
+            const actionText = isEditing.value ? 'updated' : 'created';
+            notify.success(
+                `Shop ${actionText} successfully`,
+                `${form.value.name} has been ${actionText}.`
+            );
+            emit('saved');
+            resetForm();
+            
+        } catch (error: any) {
+            console.error('Error saving shop:', error);
+            errors.value = { general: [error.message || 'An error occurred while saving the shop.'] };
+        } finally {
+            loading.value = false;
+        }
         
     } catch (error) {
         console.error('Error saving shop:', error);
@@ -331,64 +312,7 @@ const handleClose = () => {
                     />
                 </div>
 
-                <!-- DXF File Upload -->
-                <div class="space-y-2">
-                    <Label for="dxf_file">Layout File (DXF)</Label>
-                    <div class="space-y-2">
-                        <!-- File Input -->
-                        <input
-                            ref="fileInputRef"
-                            type="file"
-                            accept=".dxf"
-                            @change="handleFileSelect"
-                            :disabled="loading"
-                            class="hidden"
-                        />
-                        
-                        <!-- Upload Button -->
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="fileInputRef?.click()"
-                            :disabled="loading"
-                            class="w-full justify-center"
-                        >
-                            <Upload class="w-4 h-4 mr-2" />
-                            {{ selectedFile ? 'Change DXF File' : 'Choose DXF File' }}
-                        </Button>
 
-                        <!-- Selected File Display -->
-                        <div v-if="selectedFile" class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md dark:bg-green-900/30 dark:border-green-800">
-                            <span class="text-sm text-green-700 dark:text-green-300 truncate">
-                                {{ selectedFile.name }}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                @click="removeFile"
-                                :disabled="loading"
-                                class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
-                            >
-                                <X class="w-4 h-4" />
-                            </Button>
-                        </div>
-
-                        <!-- Current File (Edit Mode) -->
-                        <div v-if="isEditing && props.shop?.dxf_file_path && !selectedFile" class="p-3 bg-blue-50 border border-blue-200 rounded-md dark:bg-blue-900/30 dark:border-blue-800">
-                            <span class="text-sm text-blue-700 dark:text-blue-300">
-                                Current file: {{ props.shop.dxf_file_path.split('/').pop() }}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <p v-if="errors.dxf_file" class="text-xs text-red-600 dark:text-red-400">
-                        {{ errors.dxf_file[0] }}
-                    </p>
-                    <p class="text-xs not-dark:text-gray-500 dark:text-gray-400">
-                        Maximum file size: 10MB. Only .dxf files are supported.
-                    </p>
-                </div>
             </form>
 
             <DialogFooter class="flex gap-3">

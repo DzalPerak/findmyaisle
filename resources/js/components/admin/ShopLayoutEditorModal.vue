@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,17 +64,27 @@ const uploadNewDxf = async () => {
         formData.append('dxf_file', selectedFile.value);
         formData.append('_method', 'PUT');
         
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        console.log('CSRF token found:', csrfToken ? 'Yes' : 'No');
+        
         const response = await fetch(`/api/shops/${props.shop.id}/dxf`, {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || ''
             }
         });
         
         if (!response.ok) {
             const errorData = await response.json();
+            
+            // Handle CSRF token mismatch specifically
+            if (response.status === 419 || (errorData.message && errorData.message.includes('CSRF'))) {
+                throw new Error('Session expired. Please refresh the page and try again.');
+            }
+            
             throw new Error(errorData.message || 'Failed to upload DXF file');
         }
         
@@ -84,11 +94,28 @@ const uploadNewDxf = async () => {
         );
         
         emit('saved');
-        isOpen.value = false;
+        
+        // Clean up modal state properly
         selectedFile.value = null;
+        activeTab.value = 'editor';
+        
+        // Ensure modal closes properly with delay to allow success notification
+        setTimeout(async () => {
+            isOpen.value = false;
+            await nextTick();
+            
+            // Force removal of any lingering overlays
+            document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
+        }, 500);
         
     } catch (error: any) {
         console.error('Error uploading DXF:', error);
+        
+        // Clean up on error
+        selectedFile.value = null;
+        
         notify.error(
             'Upload Failed',
             error.message || 'Failed to upload DXF file. Please try again.'
@@ -136,17 +163,31 @@ const saveLayoutFromEditor = async () => {
     }
 };
 
-const closeModal = () => {
-    isOpen.value = false;
+const closeModal = async () => {
+    // Clean up all modal state
     selectedFile.value = null;
     activeTab.value = 'editor';
+    loading.value = false;
+    
+    // Close modal
+    isOpen.value = false;
+    
+    // Force cleanup of any overlay remnants
+    await nextTick();
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
 };
 
 // Reset file selection when modal closes
-watch(isOpen, (newValue) => {
+watch(isOpen, async (newValue) => {
     if (!newValue) {
         selectedFile.value = null;
         activeTab.value = 'editor';
+        loading.value = false;
+        
+        // Force DOM update to ensure overlay is removed
+        await nextTick();
     }
 });
 </script>
