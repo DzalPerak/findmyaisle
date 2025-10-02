@@ -1102,44 +1102,47 @@ function setEditingTool(tool) {
 }
 
 function updateEditingButtons() {
+    // Base class for all buttons - keeping the original nice styling
+    const baseClass = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
+    
     // Update editing mode button
     const editBtn = document.getElementById("editModeBtn");
     if (editBtn) {
         if (isEditingMode) {
             editBtn.textContent = "✋ Stop Editing";
-            editBtn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            editBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-orange-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-orange-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
             editBtn.textContent = "✏️ Edit Walls";
-            editBtn.className = "text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            editBtn.className = baseClass;
         }
     }
     
-    // Update tool buttons
+    // Update tool buttons with colored borders for selection
     const addWallBtn = document.getElementById("addWallBtn");
     const removeWallBtn = document.getElementById("removeWallBtn");
     const cutWallBtn = document.getElementById("cutWallBtn");
     
     if (addWallBtn) {
         if (editingTool === 'add') {
-            addWallBtn.className = "text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            addWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-green-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-green-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
-            addWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            addWallBtn.className = baseClass;
         }
     }
     
     if (removeWallBtn) {
         if (editingTool === 'remove') {
-            removeWallBtn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            removeWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-red-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-red-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
-            removeWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            removeWallBtn.className = baseClass;
         }
     }
     
     if (cutWallBtn) {
         if (editingTool === 'cut') {
-            cutWallBtn.className = "text-white bg-yellow-700 hover:bg-yellow-800 focus:ring-4 focus:ring-yellow-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            cutWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-yellow-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-yellow-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
-            cutWallBtn.className = "text-gray-700 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+            cutWallBtn.className = baseClass;
         }
     }
 }
@@ -1559,7 +1562,7 @@ function toggleWaypointMode() {
         }
         
         btn.textContent = "✋ Stop Adding";
-        btn.className = "text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-blue-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-blue-500 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "crosshair";
         console.log("Waypoint mode activated - click on the canvas to add waypoints");
         showNotification(
@@ -1568,8 +1571,10 @@ function toggleWaypointMode() {
             "info"
         );
     } else {
-        btn.textContent = "📍 Add Waypoint";
-        btn.className = "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none";
+        // Change text based on user mode
+        const buttonText = props.isUserMode ? "📍 Select Waypoints" : "📍 Add Waypoint";
+        btn.textContent = buttonText;
+        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "grab";
         console.log("Waypoint mode deactivated");
         showNotification("Waypoint Mode", "Waypoint adding mode disabled", "info");
@@ -1936,7 +1941,7 @@ function drawPath(path) {
                     
                     <button id="addWpBtn" type="button"
                         class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
-                        � Add Waypoint
+                        {{ isUserMode ? '📍 Select Waypoints' : '📍 Add Waypoint' }}
                     </button>
 
                     <button id="clearWpBtn" type="button"
