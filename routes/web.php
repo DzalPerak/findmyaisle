@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ShoppingListController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -28,6 +30,10 @@ Route::get('pathfinder', function () {
     return Inertia::render('Pathfinder');
 })->middleware(['auth', 'verified'])->name('pathfinder');
 
+Route::get('shoppinglist', function () {
+    return Inertia::render('ShoppingLists');
+})->middleware(['auth', 'verified'])->name('shoppinglists');
+
 // API Routes - Authenticated users
 Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
     // Route Planning API - Must come before parameterized routes
@@ -48,6 +54,15 @@ Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
         Route::delete('/shops/{shop}', [ShopController::class, 'destroy'])->name('api.shops.destroy');
     });
 });
+
+// Product and Shopping List API Routes
+Route::get('/api/products', [ProductController::class, 'index'])->middleware(['auth', 'verified']);
+
+Route::get('/api/shopping-lists', [ShoppingListController::class, 'index'])->middleware(['auth', 'verified']);
+Route::post('/api/shopping-lists', [ShoppingListController::class, 'store'])->middleware(['auth', 'verified']);
+Route::put('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'update'])->middleware(['auth', 'verified']);
+Route::delete('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'destroy'])->middleware(['auth', 'verified']);
+Route::delete('/api/shopping-lists/{shoppingList}/items', [ShoppingListController::class, 'removeItem'])->middleware(['auth', 'verified']);
 
 require __DIR__.'/admin.php';
 require __DIR__.'/settings.php';
