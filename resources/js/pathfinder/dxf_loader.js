@@ -98,12 +98,17 @@ export async function loadDxfFile(file, buffer = 5) {
 
                 // Process LINE entities
                 validLineEntities.forEach(e => {
-                    const segment = { start: e.start, end: e.end };
+                    // Apply coordinate transformation with 180° rotation
+                    // Transform: (x,y) → (-y, -x) to correct orientation and add 180° rotation
+                    const transformedStart = { x: -e.start.y, y: -e.start.x };
+                    const transformedEnd = { x: -e.end.y, y: -e.end.x };
+                    
+                    const segment = { start: transformedStart, end: transformedEnd };
                     allLineSegments.push(segment);
-                    minX = Math.min(minX, e.start.x, e.end.x);
-                    minY = Math.min(minY, e.start.y, e.end.y);
-                    maxX = Math.max(maxX, e.start.x, e.end.x);
-                    maxY = Math.max(maxY, e.start.y, e.end.y);
+                    minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                    minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                    maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                    maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                 });
                 
                 // If no valid standard LINE entities, try alternative structures
@@ -125,12 +130,16 @@ export async function loadDxfFile(file, buffer = 5) {
                         
                         if (start && end && typeof start.x === 'number' && typeof start.y === 'number' && 
                             typeof end.x === 'number' && typeof end.y === 'number') {
-                            const segment = { start, end };
+                            // Apply coordinate transformation with 180° rotation
+                            const transformedStart = { x: -start.y, y: -start.x };
+                            const transformedEnd = { x: -end.y, y: -end.x };
+                            
+                            const segment = { start: transformedStart, end: transformedEnd };
                             allLineSegments.push(segment);
-                            minX = Math.min(minX, start.x, end.x);
-                            minY = Math.min(minY, start.y, end.y);
-                            maxX = Math.max(maxX, start.x, end.x);
-                            maxY = Math.max(maxY, start.y, end.y);
+                            minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                            minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                            maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                            maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                         }
                     });
                 }
@@ -143,12 +152,16 @@ export async function loadDxfFile(file, buffer = 5) {
                         
                         if (start && end && typeof start.x === 'number' && typeof start.y === 'number' && 
                             typeof end.x === 'number' && typeof end.y === 'number') {
-                            const segment = { start, end };
+                            // Apply coordinate transformation with 180° rotation
+                            const transformedStart = { x: -start.y, y: -start.x };
+                            const transformedEnd = { x: -end.y, y: -end.x };
+                            
+                            const segment = { start: transformedStart, end: transformedEnd };
                             allLineSegments.push(segment);
-                            minX = Math.min(minX, start.x, end.x);
-                            minY = Math.min(minY, start.y, end.y);
-                            maxX = Math.max(maxX, start.x, end.x);
-                            maxY = Math.max(maxY, start.y, end.y);
+                            minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                            minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                            maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                            maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                         }
                     }
                 });
@@ -158,29 +171,37 @@ export async function loadDxfFile(file, buffer = 5) {
                     for (let i = 0; i < e.vertices.length - 1; i++) {
                         const start = e.vertices[i];
                         const end = e.vertices[i + 1];
+                        // Apply coordinate transformation with 180° rotation
+                        const transformedStart = { x: -start.y, y: -start.x };
+                        const transformedEnd = { x: -end.y, y: -end.x };
+                        
                         const segment = { 
-                            start: { x: start.x, y: start.y }, 
-                            end: { x: end.x, y: end.y } 
+                            start: transformedStart, 
+                            end: transformedEnd 
                         };
                         allLineSegments.push(segment);
-                        minX = Math.min(minX, start.x, end.x);
-                        minY = Math.min(minY, start.y, end.y);
-                        maxX = Math.max(maxX, start.x, end.x);
-                        maxY = Math.max(maxY, start.y, end.y);
+                        minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                        minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                        maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                        maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                     }
                     // If closed, connect last to first
                     if (e.closed && e.vertices.length > 2) {
                         const start = e.vertices[e.vertices.length - 1];
                         const end = e.vertices[0];
+                        // Apply coordinate transformation with 180° rotation
+                        const transformedStart = { x: -start.y, y: -start.x };
+                        const transformedEnd = { x: -end.y, y: -end.x };
+                        
                         const segment = { 
-                            start: { x: start.x, y: start.y }, 
-                            end: { x: end.x, y: end.y } 
+                            start: transformedStart, 
+                            end: transformedEnd 
                         };
                         allLineSegments.push(segment);
-                        minX = Math.min(minX, start.x, end.x);
-                        minY = Math.min(minY, start.y, end.y);
-                        maxX = Math.max(maxX, start.x, end.x);
-                        maxY = Math.max(maxY, start.y, end.y);
+                        minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                        minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                        maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                        maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                     }
                 });
                 
@@ -189,15 +210,19 @@ export async function loadDxfFile(file, buffer = 5) {
                     for (let i = 0; i < e.vertices.length - 1; i++) {
                         const start = e.vertices[i];
                         const end = e.vertices[i + 1];
+                        // Apply coordinate transformation with 180° rotation
+                        const transformedStart = { x: -start.y, y: -start.x };
+                        const transformedEnd = { x: -end.y, y: -end.x };
+                        
                         const segment = { 
-                            start: { x: start.x, y: start.y }, 
-                            end: { x: end.x, y: end.y } 
+                            start: transformedStart, 
+                            end: transformedEnd 
                         };
                         allLineSegments.push(segment);
-                        minX = Math.min(minX, start.x, end.x);
-                        minY = Math.min(minY, start.y, end.y);
-                        maxX = Math.max(maxX, start.x, end.x);
-                        maxY = Math.max(maxY, start.y, end.y);
+                        minX = Math.min(minX, transformedStart.x, transformedEnd.x);
+                        minY = Math.min(minY, transformedStart.y, transformedEnd.y);
+                        maxX = Math.max(maxX, transformedStart.x, transformedEnd.x);
+                        maxY = Math.max(maxY, transformedStart.y, transformedEnd.y);
                     }
                 });
                 
