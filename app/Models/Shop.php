@@ -42,4 +42,12 @@ class Shop extends Model
     {
         return $this->hasMany(ShopLayout::class);
     }
+
+    /**
+     * Get the waypoints for the shop.
+     */
+    public function waypoints(): HasMany
+    {
+        return $this->hasMany(Waypoint::class);
+    }
 }

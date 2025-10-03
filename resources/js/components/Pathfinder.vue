@@ -2,6 +2,9 @@
 import { onMounted, watch, ref, reactive } from "vue";
 import { Modal } from 'flowbite';
 import { useAppearance } from '@/composables/useAppearance';
+import { useUserRoles } from '@/composables/useUserRoles';
+import WaypointCategoryModal from '@/components/WaypointCategoryModal.vue';
+import ShoppingListSelector from '@/components/ShoppingListSelector.vue';
 import { loadDxfFile } from "../pathfinder/dxf_loader.js";
 import {
     createFinder,
@@ -44,7 +47,17 @@ let useOnDemandRendering = false;
 let waypoints = []; // Array of {id, name, x, y, selected} objects
 let waypointCounter = 1; // Counter for unique waypoint IDs
 let selectedWaypoints = new Set(); // Track selected waypoint IDs
+let startWaypointId = null; // ID of the starting waypoint for pathfinding
+let endWaypointId = null; // ID of the ending waypoint for pathfinding
 const contextMenu = reactive({ visible: false, x: 0, y: 0, waypointId: null });
+
+// Category assignment modal
+const showCategoryModal = ref(false);
+const selectedWaypointId = ref<number | null>(null);
+
+// User roles
+const { canAccessAdmin } = useUserRoles();
+
 let finder = createFinder();
 
 // For pathfinding when using on-demand rendering
@@ -308,18 +321,21 @@ async function loadSavedLayoutData(shopId) {
         const savedData = await response.json();
         console.log("Loaded saved layout data:", savedData);
         
-        // Restore waypoints if they exist in saved data (check both locations)
+        // Restore waypoints - prioritize database waypoints, then check saved data
         let waypointsData = null;
         let waypointCounterData = null;
         
-        if (savedData.metadata && savedData.metadata.waypoints) {
-            // Waypoints stored in metadata (new format)
+        if (savedData.waypoints && Array.isArray(savedData.waypoints)) {
+            // Waypoints from database (preferred method)
+            waypointsData = savedData.waypoints;
+            // Set counter based on highest ID + 1
+            if (waypointsData.length > 0) {
+                waypointCounterData = Math.max(...waypointsData.map(wp => wp.id || 0)) + 1;
+            }
+        } else if (savedData.metadata && savedData.metadata.waypoints) {
+            // Waypoints stored in metadata (fallback)
             waypointsData = savedData.metadata.waypoints;
             waypointCounterData = savedData.metadata.waypointCounter;
-        } else if (savedData.waypoints) {
-            // Waypoints stored at root level (fallback)
-            waypointsData = savedData.waypoints;
-            waypointCounterData = savedData.waypointCounter;
         }
         
         if (waypointsData && Array.isArray(waypointsData)) {
@@ -342,6 +358,18 @@ async function loadSavedLayoutData(shopId) {
                 `Loaded ${waypoints.length} saved waypoint${waypoints.length !== 1 ? 's' : ''}`,
                 "success"
             );
+        }
+        
+        // Restore start and end waypoint IDs from metadata
+        if (savedData.metadata) {
+            if (savedData.metadata.startWaypointId) {
+                startWaypointId = savedData.metadata.startWaypointId;
+                console.log("Restored start waypoint ID:", startWaypointId);
+            }
+            if (savedData.metadata.endWaypointId) {
+                endWaypointId = savedData.metadata.endWaypointId;
+                console.log("Restored end waypoint ID:", endWaypointId);
+            }
         }
         
         // If saved layout has modified line segments, we could restore those too
@@ -1133,6 +1161,79 @@ function deleteWaypoint() {
     contextMenu.visible = false;
 }
 
+function assignCategories() {
+    if (contextMenu.waypointId !== null) {
+        selectedWaypointId.value = contextMenu.waypointId;
+        showCategoryModal.value = true;
+    }
+    contextMenu.visible = false;
+}
+
+function setStartWaypoint() {
+    if (contextMenu.waypointId !== null) {
+        startWaypointId = contextMenu.waypointId;
+        showNotification("Start Point Set", `Waypoint set as starting point for pathfinding`, "success");
+        drawWaypointsAndPath(); // Redraw to show visual changes
+    }
+    contextMenu.visible = false;
+}
+
+function setEndWaypoint() {
+    if (contextMenu.waypointId !== null) {
+        endWaypointId = contextMenu.waypointId;
+        showNotification("End Point Set", `Waypoint set as ending point for pathfinding`, "success");
+        drawWaypointsAndPath(); // Redraw to show visual changes
+    }
+    contextMenu.visible = false;
+}
+
+function clearStartWaypoint() {
+    startWaypointId = null;
+    showNotification("Start Point Cleared", "Start waypoint has been cleared", "info");
+    drawWaypointsAndPath();
+}
+
+function clearEndWaypoint() {
+    endWaypointId = null;
+    showNotification("End Point Cleared", "End waypoint has been cleared", "info");
+    drawWaypointsAndPath();
+}
+
+function getWaypointName(waypointId) {
+    if (!waypointId) return null;
+    const waypoint = waypoints.find(wp => wp.id === waypointId);
+    return waypoint ? waypoint.name : null;
+}
+
+function onCategoriesSaved() {
+    showNotification("Categories Updated", "Waypoint categories have been saved", "success");
+}
+
+function onWaypointsSelected(waypointIds) {
+    // Clear current selection
+    selectedWaypoints.clear();
+    waypoints.forEach(wp => wp.selected = false);
+    
+    // Select waypoints by ID
+    waypoints.forEach(wp => {
+        if (waypointIds.includes(wp.id)) {
+            selectedWaypoints.add(wp.id);
+            wp.selected = true;
+        }
+    });
+    
+    drawGrid();
+    
+    const selectedCount = selectedWaypoints.size;
+    if (selectedCount > 0) {
+        showNotification(
+            "Auto-Selection Complete",
+            `Selected ${selectedCount} waypoint${selectedCount !== 1 ? 's' : ''} based on shopping list`,
+            "success"
+        );
+    }
+}
+
 // Export current layout data
 function exportLayoutData() {
     return {
@@ -1164,17 +1265,18 @@ async function saveLayoutToServer() {
         console.log("Current waypointCounter:", layoutData.waypointCounter);
         
         // Convert layout data to a format that can be sent to server
-        // Include lineSegments and bounds as required by server, plus waypoints
+        // Include lineSegments, bounds, and waypoints as required by server
         const saveData = {
             lineSegments: layoutData.lineSegments,
             bounds: layoutData.bounds,
+            waypoints: layoutData.waypoints, // Move waypoints to top level for controller
             metadata: {
                 useOnDemandRendering: layoutData.useOnDemandRendering,
                 wallBuffer: wallBuffer,
                 savedAt: new Date().toISOString(),
-                // Store waypoint data in metadata
-                waypoints: layoutData.waypoints,
-                waypointCounter: layoutData.waypointCounter
+                waypointCounter: layoutData.waypointCounter,
+                startWaypointId: startWaypointId,
+                endWaypointId: endWaypointId
             }
         };
 
@@ -2095,8 +2197,12 @@ function drawWaypointsAndPath() {
         ctx.beginPath();
         ctx.arc(canvasPos.x, canvasPos.y, size / 2, 0, 2 * Math.PI);
         
-        // Fill color based on selection state
-        if (wp.selected || selectedWaypoints.has(wp.id)) {
+        // Fill color based on waypoint type and selection state
+        if (wp.id === startWaypointId) {
+            ctx.fillStyle = "#22c55e"; // green-500 for start waypoint
+        } else if (wp.id === endWaypointId) {
+            ctx.fillStyle = "#ef4444"; // red-500 for end waypoint
+        } else if (wp.selected || selectedWaypoints.has(wp.id)) {
             ctx.fillStyle = "#10b981"; // green-500 for selected
         } else {
             ctx.fillStyle = "#3b82f6"; // blue-500 for normal
@@ -2202,7 +2308,15 @@ function drawPath(path) {
 </script>
 
 <template>
-    <div class="pathfinder-container grid grid-cols-4 gap-1 p-1">
+    <div class="pathfinder-container">
+        <!-- Shopping List Selector for User Mode -->
+        <ShoppingListSelector 
+            :is-user-mode="isUserMode"
+            :shop-id="shopId"
+            @waypoints-selected="onWaypointsSelected"
+        />
+        
+        <div class="grid grid-cols-4 gap-1 p-1">
         <!-- Canvas -->
         <div class="col-span-3 not-dark:bg-gray-200 dark:bg-gray-800 rounded overflow-hidden relative">
             <!-- Overlay Info Panel -->
@@ -2234,6 +2348,22 @@ function drawPath(path) {
                     class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm">
                 Rename
             </button>
+            <button v-if="canAccessAdmin" @click="assignCategories" 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm">
+                Assign Categories
+            </button>
+            <div v-if="canAccessAdmin" class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+            <button v-if="canAccessAdmin" @click="setStartWaypoint" 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm"
+                    :class="{ 'bg-green-100 dark:bg-green-800': startWaypointId === contextMenu.waypointId }">
+                {{ startWaypointId === contextMenu.waypointId ? '✓ Start Point' : 'Set as Start Point' }}
+            </button>
+            <button v-if="canAccessAdmin" @click="setEndWaypoint" 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm"
+                    :class="{ 'bg-red-100 dark:bg-red-800': endWaypointId === contextMenu.waypointId }">
+                {{ endWaypointId === contextMenu.waypointId ? '✓ End Point' : 'Set as End Point' }}
+            </button>
+            <div class="border-t border-gray-200 dark:border-gray-600 my-1"></div>
             <button @click="deleteWaypoint" 
                     class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-red-600 dark:text-red-400">
                 Delete
@@ -2271,6 +2401,41 @@ function drawPath(path) {
                     </button>
                 </div>
 
+                <!-- Pathfinding Configuration (Admin only) -->
+                <div v-if="!isUserMode && canAccessAdmin" class="grid grid-cols-1 mb-5">
+                    <p class="block text-sm font-medium not-dark:text-gray-900 dark:text-white">Pathfinding Configuration</p>
+                    <hr class="mb-2 not-dark:border-gray-300 dark:border-gray-600" />
+                    
+                    <!-- Start Waypoint Display -->
+                    <div class="mb-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-green-800 dark:text-green-200">
+                                🏁 Start: {{ getWaypointName(startWaypointId) || 'Not set' }}
+                            </span>
+                            <button v-if="startWaypointId" @click="clearStartWaypoint" 
+                                    class="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- End Waypoint Display -->
+                    <div class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-red-800 dark:text-red-200">
+                                🏆 End: {{ getWaypointName(endWaypointId) || 'Not set' }}
+                            </span>
+                            <button v-if="endWaypointId" @click="clearEndWaypoint" 
+                                    class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Right-click waypoints to set as start/end points
+                    </p>
+                </div>
 
                 <div class="grid grid-cols-1 mb-5">
                     <p class="block text-sm font-medium not-dark:text-gray-900 dark:text-white">Pathfinding & view control</p>
@@ -2359,5 +2524,14 @@ function drawPath(path) {
         </div>
         <!-- Flowbite Toast Container -->
         <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-4"></div>
+        
+        </div>
+        
+        <!-- Waypoint Category Assignment Modal -->
+        <WaypointCategoryModal 
+            v-model:open="showCategoryModal" 
+            :waypoint-id="selectedWaypointId"
+            @saved="onCategoriesSaved"
+        />
     </div>
 </template>

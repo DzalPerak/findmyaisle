@@ -5,6 +5,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ShoppingListController;
+use App\Http\Controllers\WaypointController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -63,6 +64,19 @@ Route::post('/api/shopping-lists', [ShoppingListController::class, 'store'])->mi
 Route::put('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'update'])->middleware(['auth', 'verified']);
 Route::delete('/api/shopping-lists/{shoppingList}', [ShoppingListController::class, 'destroy'])->middleware(['auth', 'verified']);
 Route::delete('/api/shopping-lists/{shoppingList}/items', [ShoppingListController::class, 'removeItem'])->middleware(['auth', 'verified']);
+
+// Waypoint and Category API Routes
+Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
+    // Categories (admin/editor only)
+    Route::get('/categories', [WaypointController::class, 'getCategories'])->middleware('role:admin,editor');
+    
+    // Waypoint categories management (admin/editor only) 
+    Route::get('/waypoints/{waypoint}', [WaypointController::class, 'show'])->middleware('role:admin,editor');
+    Route::put('/waypoints/{waypoint}/categories', [WaypointController::class, 'updateCategories'])->middleware('role:admin,editor');
+    
+    // Waypoint selection by shopping list (all authenticated users)
+    Route::post('/waypoints/by-shopping-list', [WaypointController::class, 'getWaypointsByShoppingList']);
+});
 
 require __DIR__.'/admin.php';
 require __DIR__.'/settings.php';

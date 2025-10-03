@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('waypoints', function (Blueprint $table) {
+        Schema::create('waypoint_categories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('shop_id')->constrained()->onDelete('cascade');
-            $table->string('name');
-            $table->decimal('x', 10, 2);
-            $table->decimal('y', 10, 2);
-            $table->text('description')->nullable();
+            $table->foreignId('waypoint_id')->constrained()->onDelete('cascade');
+            $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->timestamps();
+            
+            $table->unique(['waypoint_id', 'category_id']);
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('waypoints');
+        Schema::dropIfExists('waypoint_categories');
     }
 };

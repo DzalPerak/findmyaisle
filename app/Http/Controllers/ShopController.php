@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shop;
+use App\Models\Waypoint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -215,6 +216,10 @@ class ShopController extends Controller
         try {
             $layoutData = json_decode(Storage::disk('public')->get($layoutPath), true);
             
+            // Load waypoints from database and merge with layout data
+            $waypoints = $shop->waypoints()->get(['id', 'name', 'x', 'y', 'description'])->toArray();
+            $layoutData['waypoints'] = $waypoints;
+            
             return response()->json($layoutData);
         } catch (\Exception $e) {
             \Log::error('Error loading layout data: ' . $e->getMessage());
@@ -257,6 +262,11 @@ class ShopController extends Controller
             // Create new filename for the updated DXF
             $filename = 'shops/' . $shop->id . '/layout_edited_' . time() . '.dxf';
             Storage::disk('public')->put($filename, $dxfContent);
+
+            // Save waypoints to database
+            if ($request->has('waypoints')) {
+                $this->saveWaypointsToDatabase($shop, $request->input('waypoints'));
+            }
 
             // Save layout metadata (waypoints, etc.) as JSON file
             $layoutJsonPath = 'shops/' . $shop->id . '/layout.json';
@@ -340,5 +350,44 @@ class ShopController extends Controller
         $dxf .= "0\nENDSEC\n0\nEOF\n";
         
         return $dxf;
+    }
+
+    /**
+     * Save waypoints to database
+     */
+    private function saveWaypointsToDatabase(Shop $shop, array $waypoints): void
+    {
+        // Get existing waypoints with their categories
+        $existingWaypoints = $shop->waypoints()->with('categories')->get()->keyBy('name');
+        
+        // Clear existing waypoints for this shop
+        $shop->waypoints()->delete();
+        
+        // Save new waypoints and restore category associations
+        foreach ($waypoints as $waypoint) {
+            $waypointName = $waypoint['name'] ?? 'Waypoint';
+            
+            // Create the new waypoint
+            $newWaypoint = $shop->waypoints()->create([
+                'name' => $waypointName,
+                'x' => $waypoint['x'],
+                'y' => $waypoint['y'],
+                'description' => $waypoint['description'] ?? null
+            ]);
+            
+            // If this waypoint existed before, restore its category associations
+            if ($existingWaypoints->has($waypointName)) {
+                $existingWaypoint = $existingWaypoints->get($waypointName);
+                $categoryIds = $existingWaypoint->categories->pluck('id')->toArray();
+                
+                if (!empty($categoryIds)) {
+                    $newWaypoint->categories()->sync($categoryIds);
+                    \Log::info('Restored categories for waypoint', [
+                        'waypoint_name' => $waypointName,
+                        'category_ids' => $categoryIds
+                    ]);
+                }
+            }
+        }
     }
 }
