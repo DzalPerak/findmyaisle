@@ -10,16 +10,16 @@ import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },    
-    {
-        title: 'Navi',
-        href: "/navi",
-        icon: LayoutGrid,
-    },    
+    // {
+    //     title: 'Dashboard',
+    //     href: dashboard(),
+    //     icon: LayoutGrid,
+    // },    
+    // {
+    //     title: 'Navi',
+    //     href: "/navi",
+    //     icon: LayoutGrid,
+    // },    
     {
         title: 'Shopping Lists',
         href: "/shoppinglist",

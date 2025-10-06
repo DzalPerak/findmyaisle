@@ -256,8 +256,19 @@ class ShopController extends Controller
         try {
             $lineSegments = $request->input('lineSegments');
             
+            \Log::info('Processing layout save request', [
+                'shop_id' => $shop->id,
+                'line_segments_count' => count($lineSegments),
+                'waypoints_count' => $request->has('waypoints') ? count($request->input('waypoints')) : 0,
+                'memory_usage_before' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+            ]);
+            
             // Convert line segments back to DXF format
             $dxfContent = $this->convertToDxf($lineSegments);
+            
+            \Log::info('DXF conversion completed', [
+                'memory_usage_after_dxf' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+            ]);
             
             // Create new filename for the updated DXF
             $filename = 'shops/' . $shop->id . '/layout_edited_' . time() . '.dxf';
@@ -292,7 +303,13 @@ class ShopController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error saving layout: ' . $e->getMessage());
+            \Log::error('Error saving layout: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+                'shop_id' => $shop->id,
+                'line_segments_count' => count($request->input('lineSegments', [])),
+                'waypoints_count' => count($request->input('waypoints', []))
+            ]);
             return response()->json([
                 'message' => 'Failed to save layout',
                 'error' => $e->getMessage()
@@ -357,23 +374,52 @@ class ShopController extends Controller
      */
     private function saveWaypointsToDatabase(Shop $shop, array $waypoints): void
     {
-        // Get existing waypoints with their categories
+        \Log::info('Saving waypoints to database', [
+            'shop_id' => $shop->id,
+            'waypoints_count' => count($waypoints),
+            'sample_waypoint' => $waypoints[0] ?? null
+        ]);
+        
+        // Get existing waypoints with their categories and start/end status
         $existingWaypoints = $shop->waypoints()->with('categories')->get()->keyBy('name');
+        
+        \Log::info('Existing waypoints found', [
+            'existing_count' => $existingWaypoints->count(),
+            'existing_names' => $existingWaypoints->keys()->toArray()
+        ]);
         
         // Clear existing waypoints for this shop
         $shop->waypoints()->delete();
         
-        // Save new waypoints and restore category associations
+        // Save new waypoints and restore category associations and start/end status
         foreach ($waypoints as $waypoint) {
             $waypointName = $waypoint['name'] ?? 'Waypoint';
             
-            // Create the new waypoint
-            $newWaypoint = $shop->waypoints()->create([
+            // Create the new waypoint with default values
+            $waypointData = [
                 'name' => $waypointName,
                 'x' => $waypoint['x'],
                 'y' => $waypoint['y'],
-                'description' => $waypoint['description'] ?? null
-            ]);
+                'description' => $waypoint['description'] ?? null,
+                'is_start_point' => false,
+                'is_end_point' => false
+            ];
+            
+            // If this waypoint existed before, restore its start/end point status
+            if ($existingWaypoints->has($waypointName)) {
+                $existingWaypoint = $existingWaypoints->get($waypointName);
+                $waypointData['is_start_point'] = $existingWaypoint->is_start_point ?? false;
+                $waypointData['is_end_point'] = $existingWaypoint->is_end_point ?? false;
+                
+                \Log::info('Restoring waypoint status', [
+                    'waypoint_name' => $waypointName,
+                    'is_start_point' => $waypointData['is_start_point'],
+                    'is_end_point' => $waypointData['is_end_point']
+                ]);
+            }
+            
+            // Create the new waypoint
+            $newWaypoint = $shop->waypoints()->create($waypointData);
             
             // If this waypoint existed before, restore its category associations
             if ($existingWaypoints->has($waypointName)) {

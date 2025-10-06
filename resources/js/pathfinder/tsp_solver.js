@@ -224,3 +224,127 @@ export function calculateTotalDistance(order, distanceMatrix, pathMatrix) {
         euclideanDistanceCm: totalPathLength // 1 unit = 1 cm
     };
 }
+
+// TSP with fixed start waypoint
+export function tspOptimalWithFixedStart(distMatrix, startIndex) {
+    const n = distMatrix.length;
+    
+    // Create a list of all other waypoints
+    const otherWaypoints = [];
+    for (let i = 0; i < n; i++) {
+        if (i !== startIndex) {
+            otherWaypoints.push(i);
+        }
+    }
+    
+    // If only start waypoint, return just that
+    if (otherWaypoints.length === 0) {
+        return [startIndex];
+    }
+    
+    // If only one other waypoint, return start -> other
+    if (otherWaypoints.length === 1) {
+        return [startIndex, otherWaypoints[0]];
+    }
+    
+    // For multiple waypoints, solve TSP for the remaining waypoints
+    // and prepend the start waypoint
+    const subMatrix = createSubMatrix(distMatrix, otherWaypoints);
+    const subOrder = tspOptimal(subMatrix);
+    
+    // Map back to original indices and prepend start
+    const finalOrder = [startIndex];
+    for (const idx of subOrder) {
+        finalOrder.push(otherWaypoints[idx]);
+    }
+    
+    return finalOrder;
+}
+
+// TSP with fixed end waypoint  
+export function tspOptimalWithFixedEnd(distMatrix, endIndex) {
+    const n = distMatrix.length;
+    
+    // Create a list of all other waypoints
+    const otherWaypoints = [];
+    for (let i = 0; i < n; i++) {
+        if (i !== endIndex) {
+            otherWaypoints.push(i);
+        }
+    }
+    
+    // If only end waypoint, return just that
+    if (otherWaypoints.length === 0) {
+        return [endIndex];
+    }
+    
+    // If only one other waypoint, return other -> end
+    if (otherWaypoints.length === 1) {
+        return [otherWaypoints[0], endIndex];
+    }
+    
+    // For multiple waypoints, solve TSP for the remaining waypoints
+    // and append the end waypoint
+    const subMatrix = createSubMatrix(distMatrix, otherWaypoints);
+    const subOrder = tspOptimal(subMatrix);
+    
+    // Map back to original indices and append end
+    const finalOrder = [];
+    for (const idx of subOrder) {
+        finalOrder.push(otherWaypoints[idx]);
+    }
+    finalOrder.push(endIndex);
+    
+    return finalOrder;
+}
+
+// TSP with fixed start and end waypoints
+export function tspOptimalWithFixedStartEnd(distMatrix, startIndex, endIndex) {
+    const n = distMatrix.length;
+    
+    // Create a list of all other waypoints (excluding start and end)
+    const otherWaypoints = [];
+    for (let i = 0; i < n; i++) {
+        if (i !== startIndex && i !== endIndex) {
+            otherWaypoints.push(i);
+        }
+    }
+    
+    // If only start and end waypoints, return start -> end
+    if (otherWaypoints.length === 0) {
+        return [startIndex, endIndex];
+    }
+    
+    // If only one other waypoint, return start -> other -> end
+    if (otherWaypoints.length === 1) {
+        return [startIndex, otherWaypoints[0], endIndex];
+    }
+    
+    // For multiple intermediate waypoints, we need to find the optimal path
+    // from start through all intermediate waypoints to end
+    const subMatrix = createSubMatrix(distMatrix, otherWaypoints);
+    const subOrder = tspOptimal(subMatrix);
+    
+    // Map back to original indices with start at beginning and end at end
+    const finalOrder = [startIndex];
+    for (const idx of subOrder) {
+        finalOrder.push(otherWaypoints[idx]);
+    }
+    finalOrder.push(endIndex);
+    
+    return finalOrder;
+}
+
+// Helper function to create a sub-matrix for a subset of waypoints
+function createSubMatrix(distMatrix, waypoints) {
+    const n = waypoints.length;
+    const subMatrix = Array.from({ length: n }, () => Array(n).fill(0));
+    
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            subMatrix[i][j] = distMatrix[waypoints[i]][waypoints[j]];
+        }
+    }
+    
+    return subMatrix;
+}

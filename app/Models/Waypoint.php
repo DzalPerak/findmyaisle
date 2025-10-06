@@ -12,7 +12,14 @@ class Waypoint extends Model
         'name',
         'x',
         'y',
-        'description'
+        'description',
+        'is_start_point',
+        'is_end_point'
+    ];
+
+    protected $casts = [
+        'is_start_point' => 'boolean',
+        'is_end_point' => 'boolean',
     ];
 
     public function categories(): BelongsToMany
@@ -31,5 +38,55 @@ class Waypoint extends Model
         return $this->belongsToMany(Category::class, 'waypoint_categories')
                     ->withPivot('active')
                     ->withTimestamps();
+    }
+
+    /**
+     * Set this waypoint as the start point for its shop
+     * Unsets any existing start point for the same shop
+     */
+    public function setAsStartPoint(): bool
+    {
+        // First, unset any existing start point for this shop
+        static::where('shop_id', $this->shop_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_start_point' => false]);
+
+        // Set this waypoint as the start point
+        return $this->update(['is_start_point' => true]);
+    }
+
+    /**
+     * Set this waypoint as the end point for its shop
+     * Unsets any existing end point for the same shop
+     */
+    public function setAsEndPoint(): bool
+    {
+        // First, unset any existing end point for this shop
+        static::where('shop_id', $this->shop_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_end_point' => false]);
+
+        // Set this waypoint as the end point
+        return $this->update(['is_end_point' => true]);
+    }
+
+    /**
+     * Get the start point waypoint for a shop
+     */
+    public static function getStartPointForShop(int $shopId): ?self
+    {
+        return static::where('shop_id', $shopId)
+            ->where('is_start_point', true)
+            ->first();
+    }
+
+    /**
+     * Get the end point waypoint for a shop
+     */
+    public static function getEndPointForShop(int $shopId): ?self
+    {
+        return static::where('shop_id', $shopId)
+            ->where('is_end_point', true)
+            ->first();
     }
 }

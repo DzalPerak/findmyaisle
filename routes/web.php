@@ -74,6 +74,13 @@ Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
     Route::get('/waypoints/{waypoint}', [WaypointController::class, 'show'])->middleware('role:admin,editor');
     Route::put('/waypoints/{waypoint}/categories', [WaypointController::class, 'updateCategories'])->middleware('role:admin,editor');
     
+    // Waypoint start/end points management (admin/editor only)
+    Route::post('/waypoints/{waypoint}/set-start-point', [WaypointController::class, 'setAsStartPoint'])->middleware('role:admin,editor');
+    Route::post('/waypoints/{waypoint}/set-end-point', [WaypointController::class, 'setAsEndPoint'])->middleware('role:admin,editor');
+    Route::get('/shops/{shopId}/waypoints/start', [WaypointController::class, 'getStartWaypoint'])->middleware('role:admin,editor');
+    Route::get('/shops/{shopId}/waypoints/end', [WaypointController::class, 'getEndWaypoint'])->middleware('role:admin,editor');
+    Route::get('/shops/{shopId}/start-end-points', [WaypointController::class, 'getStartEndPoints'])->middleware('role:admin,editor');
+    
     // Waypoint selection by shopping list (all authenticated users)
     Route::post('/waypoints/by-shopping-list', [WaypointController::class, 'getWaypointsByShoppingList']);
 });

@@ -5,6 +5,7 @@ import { useAppearance } from '@/composables/useAppearance';
 import { useUserRoles } from '@/composables/useUserRoles';
 import WaypointCategoryModal from '@/components/WaypointCategoryModal.vue';
 import ShoppingListSelector from '@/components/ShoppingListSelector.vue';
+import axios from 'axios';
 import { loadDxfFile } from "../pathfinder/dxf_loader.js";
 import {
     createFinder,
@@ -18,6 +19,9 @@ import {
     distanceMatrix,
     tspOptimal,
     calculateTotalDistance,
+    tspOptimalWithFixedStart,
+    tspOptimalWithFixedEnd,
+    tspOptimalWithFixedStartEnd,
 } from "../pathfinder/tsp_solver.js";
 
 // Props
@@ -369,6 +373,47 @@ async function loadSavedLayoutData(shopId) {
             if (savedData.metadata.endWaypointId) {
                 endWaypointId = savedData.metadata.endWaypointId;
                 console.log("Restored end waypoint ID:", endWaypointId);
+            }
+        }
+        
+        // Load start and end waypoints from the database if waypoints were loaded
+        if (waypointsData && waypointsData.length > 0) {
+            try {
+                console.log("Loading start and end waypoints from database...");
+                
+                // Load start waypoint
+                const startResponse = await axios.get(`/api/shops/${shopId}/waypoints/start`);
+                if (startResponse.data && startResponse.data.id) {
+                    startWaypointId = startResponse.data.id;
+                    console.log("Loaded start waypoint from database:", startWaypointId);
+                    
+                    // Automatically select the start waypoint
+                    selectedWaypoints.add(startWaypointId);
+                    const startWaypoint = waypoints.find(wp => wp.id === startWaypointId);
+                    if (startWaypoint) {
+                        startWaypoint.selected = true;
+                        console.log("Automatically selected start waypoint:", startWaypointId);
+                    }
+                }
+                
+                // Load end waypoint  
+                const endResponse = await axios.get(`/api/shops/${shopId}/waypoints/end`);
+                if (endResponse.data && endResponse.data.id) {
+                    endWaypointId = endResponse.data.id;
+                    console.log("Loaded end waypoint from database:", endWaypointId);
+                    
+                    // Automatically select the end waypoint
+                    selectedWaypoints.add(endWaypointId);
+                    const endWaypoint = waypoints.find(wp => wp.id === endWaypointId);
+                    if (endWaypoint) {
+                        endWaypoint.selected = true;
+                        console.log("Automatically selected end waypoint:", endWaypointId);
+                    }
+                }
+                
+            } catch (error) {
+                console.log("No start/end waypoints set in database or error loading:", error.response?.status === 404 ? "not found" : error);
+                // This is fine - start/end waypoints are optional
             }
         }
         
@@ -922,15 +967,51 @@ onMounted(() => {
                 const distMat = result.distances;
                 const pathMat = result.paths;
 
-                // Use optimal TSP solver
+                // Handle start and end waypoints if they are set
+                let order;
                 const startTime = performance.now();
-                const order = tspOptimal(distMat);
+                
+                // Find indices of start and end waypoints in the waypointsToUse array
+                let startIndex = -1;
+                let endIndex = -1;
+                
+                if (startWaypointId || endWaypointId) {
+                    for (let i = 0; i < waypointsToUse.length; i++) {
+                        if (startWaypointId && waypointsToUse[i].id === startWaypointId) {
+                            startIndex = i;
+                        }
+                        if (endWaypointId && waypointsToUse[i].id === endWaypointId) {
+                            endIndex = i;
+                        }
+                    }
+                    
+                    console.log(`Start waypoint index: ${startIndex}, End waypoint index: ${endIndex}`);
+                }
+                
+                // If both start and end waypoints are set, solve TSP with fixed start and end
+                if (startIndex >= 0 && endIndex >= 0 && startIndex !== endIndex) {
+                    console.log("Solving TSP with fixed start and end waypoints...");
+                    order = tspOptimalWithFixedStartEnd(distMat, startIndex, endIndex);
+                } else if (startIndex >= 0) {
+                    // Only start waypoint is set
+                    console.log("Solving TSP with fixed start waypoint...");
+                    order = tspOptimalWithFixedStart(distMat, startIndex);
+                } else if (endIndex >= 0) {
+                    // Only end waypoint is set
+                    console.log("Solving TSP with fixed end waypoint...");
+                    order = tspOptimalWithFixedEnd(distMat, endIndex);
+                } else {
+                    // No fixed waypoints, use normal TSP
+                    console.log("Solving normal TSP without fixed waypoints...");
+                    order = tspOptimal(distMat);
+                }
+                
                 const tspTime = performance.now() - startTime;
 
                 console.log(
                     `TSP solved in ${tspTime.toFixed(2)}ms for ${
                         scaledWaypoints.length
-                    } waypoints`
+                    } waypoints with order: [${order.join(', ')}]`
                 );
 
                 // Calculate total distance
@@ -1169,31 +1250,87 @@ function assignCategories() {
     contextMenu.visible = false;
 }
 
-function setStartWaypoint() {
+async function setStartWaypoint() {
     if (contextMenu.waypointId !== null) {
-        startWaypointId = contextMenu.waypointId;
-        showNotification("Start Point Set", `Waypoint set as starting point for pathfinding`, "success");
-        drawWaypointsAndPath(); // Redraw to show visual changes
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            await axios.post(`/api/waypoints/${contextMenu.waypointId}/set-start-point`, {}, {
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            startWaypointId = contextMenu.waypointId;
+            
+            // Automatically select the start waypoint
+            selectedWaypoints.add(startWaypointId);
+            const startWaypoint = waypoints.find(wp => wp.id === startWaypointId);
+            if (startWaypoint) {
+                startWaypoint.selected = true;
+                console.log("Automatically selected start waypoint:", startWaypointId);
+            }
+            
+            showNotification("Start Point Set", `Waypoint set as starting point for pathfinding`, "success");
+            drawWaypointsAndPath(); // Redraw to show visual changes
+        } catch (error) {
+            console.error('Error setting start waypoint:', error);
+            showNotification("Error", "Failed to set start waypoint", "error");
+        }
     }
     contextMenu.visible = false;
 }
 
-function setEndWaypoint() {
+async function setEndWaypoint() {
     if (contextMenu.waypointId !== null) {
-        endWaypointId = contextMenu.waypointId;
-        showNotification("End Point Set", `Waypoint set as ending point for pathfinding`, "success");
-        drawWaypointsAndPath(); // Redraw to show visual changes
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            await axios.post(`/api/waypoints/${contextMenu.waypointId}/set-end-point`, {}, {
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            endWaypointId = contextMenu.waypointId;
+            
+            // Automatically select the end waypoint
+            selectedWaypoints.add(endWaypointId);
+            const endWaypoint = waypoints.find(wp => wp.id === endWaypointId);
+            if (endWaypoint) {
+                endWaypoint.selected = true;
+                console.log("Automatically selected end waypoint:", endWaypointId);
+            }
+            
+            showNotification("End Point Set", `Waypoint set as ending point for pathfinding`, "success");
+            drawWaypointsAndPath(); // Redraw to show visual changes
+        } catch (error) {
+            console.error('Error setting end waypoint:', error);
+            showNotification("Error", "Failed to set end waypoint", "error");
+        }
     }
     contextMenu.visible = false;
 }
 
 function clearStartWaypoint() {
+    if (startWaypointId) {
+        // Note: We don't automatically deselect the waypoint when clearing start/end status
+        // because the user may have manually selected it for other reasons
+        console.log("Cleared start waypoint:", startWaypointId);
+    }
     startWaypointId = null;
     showNotification("Start Point Cleared", "Start waypoint has been cleared", "info");
     drawWaypointsAndPath();
 }
 
 function clearEndWaypoint() {
+    if (endWaypointId) {
+        // Note: We don't automatically deselect the waypoint when clearing start/end status
+        // because the user may have manually selected it for other reasons
+        console.log("Cleared end waypoint:", endWaypointId);
+    }
     endWaypointId = null;
     showNotification("End Point Cleared", "End waypoint has been cleared", "info");
     drawWaypointsAndPath();
@@ -1210,13 +1347,24 @@ function onCategoriesSaved() {
 }
 
 function onWaypointsSelected(waypointIds) {
-    // Clear current selection
+    // Clear current selection but preserve start/end waypoints
     selectedWaypoints.clear();
     waypoints.forEach(wp => wp.selected = false);
     
-    // Select waypoints by ID
+    // Always include start and end waypoints in the selection
+    const waypointsToSelect = [...waypointIds];
+    if (startWaypointId && !waypointsToSelect.includes(startWaypointId)) {
+        waypointsToSelect.push(startWaypointId);
+        console.log("Preserving start waypoint selection:", startWaypointId);
+    }
+    if (endWaypointId && !waypointsToSelect.includes(endWaypointId)) {
+        waypointsToSelect.push(endWaypointId);
+        console.log("Preserving end waypoint selection:", endWaypointId);
+    }
+    
+    // Select waypoints by ID (including preserved start/end waypoints)
     waypoints.forEach(wp => {
-        if (waypointIds.includes(wp.id)) {
+        if (waypointsToSelect.includes(wp.id)) {
             selectedWaypoints.add(wp.id);
             wp.selected = true;
         }
@@ -1225,10 +1373,20 @@ function onWaypointsSelected(waypointIds) {
     drawGrid();
     
     const selectedCount = selectedWaypoints.size;
+    const shoppingListCount = waypointIds.length;
+    const hasStartEnd = (startWaypointId || endWaypointId) && selectedCount > shoppingListCount;
+    
     if (selectedCount > 0) {
+        let message = `Selected ${selectedCount} waypoint${selectedCount !== 1 ? 's' : ''}`;
+        if (hasStartEnd) {
+            message += ` (${shoppingListCount} from shopping list + start/end waypoints)`;
+        } else {
+            message += ` based on shopping list`;
+        }
+        
         showNotification(
             "Auto-Selection Complete",
-            `Selected ${selectedCount} waypoint${selectedCount !== 1 ? 's' : ''} based on shopping list`,
+            message,
             "success"
         );
     }

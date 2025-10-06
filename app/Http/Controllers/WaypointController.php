@@ -187,4 +187,126 @@ class WaypointController extends Controller
             'categories' => $categoryIds
         ]);
     }
+
+    /**
+     * Set waypoint as start point for the shop
+     */
+    public function setAsStartPoint(Request $request, Waypoint $waypoint)
+    {
+        try {
+            $waypoint->setAsStartPoint();
+            
+            \Log::info('Set waypoint as start point', [
+                'waypoint_id' => $waypoint->id,
+                'shop_id' => $waypoint->shop_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Waypoint set as start point successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error setting waypoint as start point', [
+                'waypoint_id' => $waypoint->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to set waypoint as start point'
+            ], 500);
+        }
+    }
+
+    /**
+     * Set waypoint as end point for the shop
+     */
+    public function setAsEndPoint(Request $request, Waypoint $waypoint)
+    {
+        try {
+            $waypoint->setAsEndPoint();
+            
+            \Log::info('Set waypoint as end point', [
+                'waypoint_id' => $waypoint->id,
+                'shop_id' => $waypoint->shop_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Waypoint set as end point successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error setting waypoint as end point', [
+                'waypoint_id' => $waypoint->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to set waypoint as end point'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get start waypoint for a shop
+     */
+    public function getStartWaypoint(Request $request, $shopId)
+    {
+        $startPoint = Waypoint::getStartPointForShop($shopId);
+        
+        if (!$startPoint) {
+            return response()->json(['message' => 'No start waypoint found'], 404);
+        }
+
+        return response()->json([
+            'id' => $startPoint->id,
+            'name' => $startPoint->name,
+            'x' => $startPoint->x,
+            'y' => $startPoint->y
+        ]);
+    }
+
+    /**
+     * Get end waypoint for a shop
+     */
+    public function getEndWaypoint(Request $request, $shopId)
+    {
+        $endPoint = Waypoint::getEndPointForShop($shopId);
+        
+        if (!$endPoint) {
+            return response()->json(['message' => 'No end waypoint found'], 404);
+        }
+
+        return response()->json([
+            'id' => $endPoint->id,
+            'name' => $endPoint->name,
+            'x' => $endPoint->x,
+            'y' => $endPoint->y
+        ]);
+    }
+
+    /**
+     * Get start and end points for a shop
+     */
+    public function getStartEndPoints(Request $request, $shopId)
+    {
+        $startPoint = Waypoint::getStartPointForShop($shopId);
+        $endPoint = Waypoint::getEndPointForShop($shopId);
+
+        return response()->json([
+            'start_point' => $startPoint ? [
+                'id' => $startPoint->id,
+                'name' => $startPoint->name,
+                'x' => $startPoint->x,
+                'y' => $startPoint->y
+            ] : null,
+            'end_point' => $endPoint ? [
+                'id' => $endPoint->id,
+                'name' => $endPoint->name,
+                'x' => $endPoint->x,
+                'y' => $endPoint->y
+            ] : null
+        ]);
+    }
 }
