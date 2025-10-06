@@ -215,20 +215,20 @@ watch(isOpen, async (newValue) => {
 
             <div class="flex flex-col h-full">
                 <!-- Custom Tab Navigation -->
-                <div class="flex w-full mb-6 bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex-shrink-0">
+                <div class="flex w-full mb-6 not-dark:bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex-shrink-0">
                     <button
                         @click="activeTab = 'editor'"
                         :class="[
                             'flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-lg font-semibold text-base transition-colors',
                             activeTab === 'editor'
-                                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-md'
+                                ? 'not-dark:bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-md'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                         ]"
                     >
                         <Map class="w-5 h-5" />
                         Visual Editor
                     </button>
-                    <button
+                    <!-- <button
                         @click="activeTab = 'upload'"
                         :class="[
                             'flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-lg font-semibold text-base transition-colors',
@@ -239,19 +239,19 @@ watch(isOpen, async (newValue) => {
                     >
                         <Upload class="w-5 h-5" />
                         Upload New File
-                    </button>
+                    </button> -->
                 </div>
 
                 <!-- Visual Editor Tab Content -->
                 <div v-if="activeTab === 'editor'" class="flex flex-col flex-1 space-y-4 overflow-y-auto">
-                        <div class="flex items-center justify-between p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
+                        <div class="flex items-center justify-between p-6 not-dark:bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                                     <Map class="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-bold text-blue-900 dark:text-blue-100">Visual Layout Editor</h3>
-                                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                                    <h3 class="text-lg font-bold not-dark:text-blue-900 dark:text-blue-100">Visual Layout Editor</h3>
+                                    <p class="text-sm not-dark:text-blue-700 dark:text-blue-300">
                                         Edit your shop layout using the interactive visual editor below. Changes are saved automatically.
                                     </p>
                                 </div>

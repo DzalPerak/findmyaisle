@@ -226,7 +226,7 @@ onMounted(() => {
         <!-- Permission Check -->
         <div v-if="!canAccessAdmin" class="flex items-center justify-center min-h-96">
             <div class="text-center">
-                <Store class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
+                <Store class="w-16 h-16 mx-auto not-dark:text-gray-400 dark:text-gray-600 mb-4" />
                 <h3 class="text-xl font-semibold not-dark:text-gray-900 dark:text-white mb-2">
                     Access Restricted
                 </h3>
@@ -237,16 +237,18 @@ onMounted(() => {
         </div>
 
         <!-- Main Content -->
-        <div v-else class="min-h-screen not-dark:bg-gray-50 dark:bg-gray-900 py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-                <!-- Header -->
-                <div class="text-center">
-                    <h1 class="text-4xl font-bold not-dark:text-gray-900 dark:text-white mb-4">
-                        Shop Management
-                    </h1>
-                    <p class="text-lg not-dark:text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
-                        Manage your shop locations and information with comprehensive administrative tools
-                    </p>
+        <div v-else class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="not-dark:bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg">
+                    <div class="p-6 lg:p-8 space-y-6">
+                        <!-- Header -->
+                        <div class="text-center">
+                            <h1 class="text-4xl font-bold not-dark:text-gray-900 dark:text-white mb-4">
+                                Shop Management
+                            </h1>
+                            <p class="text-lg not-dark:text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+                                Manage your shop locations and information with comprehensive administrative tools
+                            </p>
                     
                     <Button v-if="canEdit" @click="openAddModal" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 inline-flex items-center gap-2">
                         <Plus class="w-5 h-5" />
@@ -275,11 +277,11 @@ onMounted(() => {
                     <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                         <!-- Search -->
                         <div class="relative flex-1 max-w-md">
-                            <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 not-dark:text-gray-400 w-4 h-4" />
                             <Input
                                 v-model="searchQuery"
                                 placeholder="Search shops..."
-                                class="pl-10 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500"
+                                class="pl-10 not-dark:border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500"
                                 @keyup.enter="handleSearch"
                             />
                         </div>
@@ -289,7 +291,7 @@ onMounted(() => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                :class="{ 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700': viewMode === 'grid', 'border-gray-300 dark:border-gray-600': viewMode !== 'grid' }"
+                                :class="{ 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700': viewMode === 'grid', 'not-dark:border-gray-300 dark:border-gray-600': viewMode !== 'grid' }"
                                 @click="viewMode = 'grid'"
                             >
                                 <LayoutGrid class="w-4 h-4" />
@@ -297,7 +299,7 @@ onMounted(() => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                :class="{ 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700': viewMode === 'list', 'border-gray-300 dark:border-gray-600': viewMode !== 'list' }"
+                                :class="{ 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700': viewMode === 'list', 'not-dark:border-gray-300 dark:border-gray-600': viewMode !== 'list' }"
                                 @click="viewMode = 'list'"
                             >
                                 <List class="w-4 h-4" />
@@ -317,8 +319,8 @@ onMounted(() => {
                 <!-- Empty State -->
                 <div v-else-if="shops.length === 0" class="text-center py-16">
                     <div class="max-w-md mx-auto">
-                        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Store class="w-10 h-10 text-gray-400 dark:text-gray-600" />
+                        <div class="w-20 h-20 not-dark:bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Store class="w-10 h-10 not-dark:text-gray-400 dark:text-gray-600" />
                         </div>
                         <h3 class="text-2xl font-bold not-dark:text-gray-900 dark:text-white mb-4">
                             {{ searchQuery ? 'No shops found' : 'No shops yet' }}
@@ -386,9 +388,9 @@ onMounted(() => {
 
                         <!-- Card Content -->
                         <div class="space-y-4">
-                            <div class="flex items-center gap-3 text-not-dark:text-gray-700 dark:text-gray-300">
-                                <div class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                    <MapPin class="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <div class="flex items-center gap-3 not-dark:text-gray-700 dark:text-gray-300">
+                                <div class="w-8 h-8 not-dark:bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                    <MapPin class="w-4 h-4 not-dark:text-gray-500 dark:text-gray-400" />
                                 </div>
                                 <span class="truncate font-medium">{{ shop.location }}</span>
                             </div>
@@ -402,9 +404,9 @@ onMounted(() => {
                                     <FileText class="w-4 h-4 text-green-600 dark:text-green-400" />
                                     <span class="text-sm text-green-700 dark:text-green-300 font-medium">Layout Available</span>
                                 </div>
-                                <div v-else class="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-full">
-                                    <FileText class="w-4 h-4 text-gray-400" />
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">No Layout</span>
+                                <div v-else class="flex items-center gap-2 px-3 py-1 not-dark:bg-gray-50 dark:bg-gray-800 rounded-full">
+                                    <FileText class="w-4 h-4 not-dark:text-gray-400" />
+                                    <span class="text-sm not-dark:text-gray-500 dark:text-gray-400">No Layout</span>
                                 </div>
                                 
                                 <!-- Quick Actions -->
@@ -469,7 +471,7 @@ onMounted(() => {
                                 </td>
                                 <td class="px-8 py-6">
                                     <div class="flex items-center gap-2">
-                                        <MapPin class="w-4 h-4 text-gray-400" />
+                                        <MapPin class="w-4 h-4 not-dark:text-gray-400" />
                                         <span class="text-sm font-medium not-dark:text-gray-900 dark:text-white">{{ shop.location }}</span>
                                     </div>
                                 </td>
@@ -477,14 +479,14 @@ onMounted(() => {
                                     <span v-if="shop.latitude && shop.longitude" class="font-mono">
                                         {{ formatCoordinate(shop.latitude, 4) }}, {{ formatCoordinate(shop.longitude, 4) }}
                                     </span>
-                                    <span v-else class="text-gray-400">Not set</span>
+                                    <span v-else class="not-dark:text-gray-400">Not set</span>
                                 </td>
                                 <td class="px-8 py-6 text-center">
                                     <span v-if="shop.dxf_file_path" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                                         <FileText class="w-4 h-4 mr-2" />
                                         Available
                                     </span>
-                                    <span v-else class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                                    <span v-else class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium not-dark:bg-gray-100 not-dark:text-gray-600 dark:bg-gray-800 dark:text-gray-400">
                                         <FileText class="w-4 h-4 mr-2" />
                                         None
                                     </span>
@@ -511,8 +513,8 @@ onMounted(() => {
                 </div>
             </div>
 
-                <!-- Pagination -->
-                <div v-if="pagination.lastPage > 1" class="not-dark:bg-white dark:bg-gray-800 rounded-xl shadow-sm border not-dark:border-gray-200 dark:border-gray-700 p-6">
+                        <!-- Pagination -->
+                        <div v-if="pagination.lastPage > 1" class="not-dark:bg-white dark:bg-gray-700 rounded-lg shadow border not-dark:border-gray-200 dark:border-gray-600 p-6">
                     <div class="flex items-center justify-between">
                         <div class="text-sm not-dark:text-gray-700 dark:text-gray-300">
                             Showing {{ ((pagination.currentPage - 1) * pagination.perPage) + 1 }} to 
@@ -541,6 +543,8 @@ onMounted(() => {
                             >
                                 Next
                             </Button>
+                        </div>
+                    </div>
                         </div>
                     </div>
                 </div>

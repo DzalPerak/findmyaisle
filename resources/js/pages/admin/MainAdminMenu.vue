@@ -85,77 +85,81 @@ const breadcrumbs: BreadcrumbItem[] = [
 
     <Head title="Admin Menu" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="min-h-screen not-dark:bg-gray-50 dark:bg-gray-900 py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <!-- Header -->
-                <div class="text-center mb-10">
-                    <h1 class="text-4xl font-bold not-dark:text-gray-900 dark:text-white mb-4">
-                        Admin Dashboard
-                    </h1>
-                    <p class="text-lg not-dark:text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                        Manage your ShopNavi system with comprehensive administrative tools
-                    </p>
-                </div>
+        <div class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="not-dark:bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg">
+                    <div class="p-6 lg:p-8">
+                        <!-- Header -->
+                        <div class="text-center mb-10">
+                            <h1 class="text-4xl font-bold not-dark:text-gray-900 dark:text-white mb-4">
+                                Admin Dashboard
+                            </h1>
+                            <p class="text-lg not-dark:text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                                Manage your ShopNavi system with comprehensive administrative tools
+                            </p>
+                        </div>
 
-                <!-- User Role Info -->
-                <div v-if="user?.roles?.length" class="mb-8 text-center">
-                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-sm">
-                        <Shield class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span class="not-dark:text-blue-800 dark:text-blue-300">
-                            Logged in as: 
-                            <span class="font-semibold">
-                                {{ getRoleDisplayNames.join(', ') }}
-                            </span>
-                        </span>
-                    </div>
-                </div>
+                        <!-- User Role Info -->
+                        <div v-if="user?.roles?.length" class="mb-8 text-center">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-sm">
+                                <Shield class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                <span class="text-blue-800 dark:text-blue-300">
+                                    Logged in as: 
+                                    <span class="font-semibold">
+                                        {{ getRoleDisplayNames.join(', ') }}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
 
-                <!-- Admin Menu Grid -->
-                <div v-if="adminMenuItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <AdminMenuButton 
-                        v-for="item in adminMenuItems" 
-                        :key="item.name" 
-                        :to="item.to" 
-                        :icon="item.icon"
-                        :name="item.name" 
-                        :description="item.description"
-                        :color="item.color"
-                    />
-                </div>
+                        <!-- Admin Menu Grid -->
+                        <div v-if="adminMenuItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <AdminMenuButton 
+                                v-for="item in adminMenuItems" 
+                                :key="item.name" 
+                                :to="item.to" 
+                                :icon="item.icon"
+                                :name="item.name" 
+                                :description="item.description"
+                                :color="item.color"
+                            />
+                        </div>
 
-                <!-- No Access Message -->
-                <div v-else class="text-center py-12">
-                    <div class="max-w-md mx-auto">
-                        <Shield class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
-                        <h3 class="text-xl font-semibold not-dark:text-gray-900 dark:text-white mb-2">
-                            Access Restricted
-                        </h3>
-                        <p class="not-dark:text-gray-600 dark:text-gray-400 mb-4">
-                            You don't have permission to access any admin features.
-                        </p>
-                        <p class="text-sm not-dark:text-gray-500 dark:text-gray-500">
-                            Contact your administrator if you believe this is an error.
-                        </p>
-                    </div>
-                </div>
+                        <!-- No Access Message -->
+                        <div v-else class="text-center py-12">
+                            <div class="max-w-md mx-auto">
+                                <Shield class="w-16 h-16 mx-auto not-dark:text-gray-400 dark:text-gray-600 mb-4" />
+                                <h3 class="text-xl font-semibold not-dark:text-gray-900 dark:text-white mb-2">
+                                    Access Restricted
+                                </h3>
+                                <p class="not-dark:text-gray-600 dark:text-gray-400 mb-4">
+                                    You don't have permission to access any admin features.
+                                </p>
+                                <p class="text-sm not-dark:text-gray-500 dark:text-gray-500">
+                                    Contact your administrator if you believe this is an error.
+                                </p>
+                            </div>
+                        </div>
 
-                <!-- Quick Stats Section -->
-                <div class="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-                        <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">12</div>
-                        <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Total Shops</div>
-                    </div>
-                    <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-                        <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">324</div>
-                        <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Active Users</div>
-                    </div>
-                    <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-                        <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">8</div>
-                        <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Maps Created</div>
-                    </div>
-                    <div class="not-dark:bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-                        <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">1.2k</div>
-                        <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Navigations</div>
+                        <!-- Quick Stats Section -->
+                        <div class="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div class="not-dark:bg-white dark:bg-gray-700 rounded-lg shadow border not-dark:border-gray-200 dark:border-gray-600 p-6 text-center">
+                                <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">12</div>
+                                <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Total Shops</div>
+                            </div>
+                            <div class="not-dark:bg-white dark:bg-gray-700 rounded-lg shadow border not-dark:border-gray-200 dark:border-gray-600 p-6 text-center">
+                                <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">324</div>
+                                <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Active Users</div>
+                            </div>
+                            <div class="not-dark:bg-white dark:bg-gray-700 rounded-lg shadow border not-dark:border-gray-200 dark:border-gray-600 p-6 text-center">
+                                <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">8</div>
+                                <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Maps Created</div>
+                            </div>
+                            <div class="not-dark:bg-white dark:bg-gray-700 rounded-lg shadow border not-dark:border-gray-200 dark:border-gray-600 p-6 text-center">
+                                <div class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">1.2k</div>
+                                <div class="text-sm not-dark:text-gray-500 dark:text-gray-400">Navigations</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

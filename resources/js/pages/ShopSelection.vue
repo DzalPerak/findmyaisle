@@ -112,8 +112,8 @@ onMounted(() => {
                             <div class="flex items-center space-x-3">
                                 <Building2 class="h-8 w-8 text-blue-600" />
                                 <div>
-                                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Choose Your Store</h1>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">Select a store to plan your shopping route</p>
+                                    <h1 class="text-2xl font-bold not-dark:text-gray-900 dark:text-white">Choose Your Store</h1>
+                                    <p class="text-sm not-dark:text-gray-600 dark:text-gray-400">Select a store to plan your shopping route</p>
                                 </div>
                             </div>
                         </div>
@@ -129,19 +129,19 @@ onMounted(() => {
                                     v-model="searchQuery"
                                     type="text"
                                     placeholder="Search shops..."
-                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    class="block w-full pl-10 pr-3 py-2 border not-dark:border-gray-300 rounded-md leading-5 not-dark:bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white not-dark:text-gray-900 dark:placeholder-gray-400"
                                 />
                             </div>
 
                             <!-- View Mode Toggle -->
-                            <div class="flex rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div class="flex rounded-lg border not-dark:border-gray-200 dark:border-gray-600">
                                 <button
                                     @click="viewMode = 'grid'"
                                     :class="[
                                         'px-4 py-2 text-sm font-medium rounded-l-lg transition-colors',
                                         viewMode === 'grid'
                                             ? 'bg-blue-600 text-white'
-                                            : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300'
+                                            : 'not-dark:bg-white not-dark:text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300'
                                     ]"
                                 >
                                     Grid
@@ -152,7 +152,7 @@ onMounted(() => {
                                         'px-4 py-2 text-sm font-medium rounded-r-lg border-l transition-colors',
                                         viewMode === 'list'
                                             ? 'bg-blue-600 text-white border-blue-600'
-                                            : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
+                                            : 'not-dark:bg-white not-dark:text-gray-700 hover:bg-gray-50 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
                                     ]"
                                 >
                                     List
@@ -163,23 +163,23 @@ onMounted(() => {
                         <!-- Loading State -->
                         <div v-if="isLoading" class="text-center py-12">
                             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                            <p class="text-gray-600 dark:text-gray-400">Loading available shops...</p>
+                            <p class="not-dark:text-gray-600 dark:text-gray-400">Loading available shops...</p>
                         </div>
 
                         <!-- No Results -->
                         <div v-else-if="filteredShops.length === 0" class="text-center py-12">
                             <Building2 class="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            <h3 class="text-lg font-medium not-dark:text-gray-900 dark:text-white mb-2">
                                 {{ searchQuery ? 'No matching shops found' : 'No shops available' }}
                             </h3>
-                            <p class="text-gray-600 dark:text-gray-400">
+                            <p class="not-dark:text-gray-600 dark:text-gray-400">
                                 {{ searchQuery ? 'Try adjusting your search terms' : 'Please check back later' }}
                             </p>
                         </div>
 
                         <!-- Helper Info -->
                         <div v-else>
-                            <div class="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                            <div class="mb-4 not-dark:bg-blue-50 dark:bg-blue-900/30 border not-dark:border-blue-200 dark:border-blue-700 rounded-lg p-4">
                                 <div class="flex">
                                     <div class="flex-shrink-0">
                                         <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -187,7 +187,7 @@ onMounted(() => {
                                         </svg>
                                     </div>
                                     <div class="ml-3">
-                                        <p class="text-sm text-blue-700 dark:text-blue-200">
+                                        <p class="text-sm not-dark:text-blue-700 dark:text-blue-200">
                                             <strong>Tip:</strong> Only shops with available floor plans can be selected for route planning. 
                                             The floor plan will automatically load when you enter the route planner.
                                         </p>
@@ -213,12 +213,12 @@ onMounted(() => {
                                     <div class="bg-blue-100 dark:bg-blue-900 rounded-full p-2">
                                         <Building2 class="h-6 w-6 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ shop.name }}</h3>
+                                    <h3 class="text-lg font-semibold not-dark:text-gray-900 dark:text-white">{{ shop.name }}</h3>
                                 </div>
                                 
                                 <div class="flex items-start space-x-2 mb-4">
                                     <MapPin class="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ shop.location }}</p>
+                                    <p class="text-sm not-dark:text-gray-600 dark:text-gray-400">{{ shop.location }}</p>
                                 </div>
                                 
                                 <div class="flex items-center justify-between">

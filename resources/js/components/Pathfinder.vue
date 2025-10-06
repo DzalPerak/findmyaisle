@@ -126,7 +126,7 @@ function showNotification(title, message, type = "info") {
 
     // Create Flowbite toast
     const toast = document.createElement("div");
-    toast.className = "flex items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800";
+    toast.className = "flex items-center w-full max-w-xs p-4 not-dark:text-gray-500 not-dark:bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800";
     
     // Icon based on type
     let iconClass = "";
@@ -134,19 +134,19 @@ function showNotification(title, message, type = "info") {
     switch(type) {
         case "success":
             iconClass = "w-3 h-3";
-            iconBg = "bg-green-100 text-green-500 dark:bg-green-800 dark:text-green-200";
+            iconBg = "not-dark:bg-green-100 not-dark:text-green-500 dark:bg-green-800 dark:text-green-200";
             break;
         case "error":
             iconClass = "w-3 h-3";
-            iconBg = "bg-red-100 text-red-500 dark:bg-red-800 dark:text-red-200";
+            iconBg = "not-dark:bg-red-100 not-dark:text-red-500 dark:bg-red-800 dark:text-red-200";
             break;
         case "warning":
             iconClass = "w-3 h-3";
-            iconBg = "bg-orange-100 text-orange-500 dark:bg-orange-700 dark:text-orange-200";
+            iconBg = "not-dark:bg-orange-100 not-dark:text-orange-500 dark:bg-orange-700 dark:text-orange-200";
             break;
         default: // info
             iconClass = "w-3 h-3";
-            iconBg = "bg-blue-100 text-blue-500 dark:bg-blue-800 dark:text-blue-200";
+            iconBg = "not-dark:bg-blue-100 not-dark:text-blue-500 dark:bg-blue-800 dark:text-blue-200";
     }
 
     toast.innerHTML = `
@@ -160,7 +160,7 @@ function showNotification(title, message, type = "info") {
             <div class="font-semibold">${title}</div>
             <div class="text-xs">${message}</div>
         </div>
-        <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700">
+        <button type="button" class="ms-auto -mx-1.5 -my-1.5 not-dark:bg-white not-dark:text-gray-400 not-dark:hover:text-gray-900 rounded-lg focus:ring-2 not-dark:focus:ring-gray-300 p-1.5 not-dark:hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500  dark:bg-gray-800 dark:hover:bg-gray-700">
             <span class="sr-only">Close</span>
             <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -1620,14 +1620,14 @@ function setEditingTool(tool) {
 
 function updateEditingButtons() {
     // Base class for all buttons - keeping the original nice styling
-    const baseClass = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
+    const baseClass = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
     
     // Update editing mode button
     const editBtn = document.getElementById("editModeBtn");
     if (editBtn) {
         if (isEditingMode) {
             editBtn.textContent = "✋ Stop Editing";
-            editBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-orange-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-orange-500 dark:hover:text-white dark:hover:bg-gray-700";
+            editBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-orange-500 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-orange-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
             editBtn.textContent = "✏️ Edit Walls";
             editBtn.className = baseClass;
@@ -1641,7 +1641,7 @@ function updateEditingButtons() {
     
     if (addWallBtn) {
         if (editingTool === 'add') {
-            addWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-green-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-green-500 dark:hover:text-white dark:hover:bg-gray-700";
+            addWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-green-500 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-green-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
             addWallBtn.className = baseClass;
         }
@@ -1649,7 +1649,7 @@ function updateEditingButtons() {
     
     if (removeWallBtn) {
         if (editingTool === 'remove') {
-            removeWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-red-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-red-500 dark:hover:text-white dark:hover:bg-gray-700";
+            removeWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-red-500 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-red-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
             removeWallBtn.className = baseClass;
         }
@@ -1657,7 +1657,7 @@ function updateEditingButtons() {
     
     if (cutWallBtn) {
         if (editingTool === 'cut') {
-            cutWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-yellow-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-yellow-500 dark:hover:text-white dark:hover:bg-gray-700";
+            cutWallBtn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-yellow-500 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-yellow-500 dark:hover:text-white dark:hover:bg-gray-700";
         } else {
             cutWallBtn.className = baseClass;
         }
@@ -2079,7 +2079,7 @@ function toggleWaypointMode() {
         }
         
         btn.textContent = "✋ Stop Adding";
-        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-blue-500 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-blue-500 dark:hover:text-white dark:hover:bg-gray-700";
+        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border-2 border-blue-500 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-blue-500 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "crosshair";
         const logMessage = props.isUserMode 
             ? "Selection mode activated - click on waypoints to select them"
@@ -2098,7 +2098,7 @@ function toggleWaypointMode() {
         // Change text based on user mode
         const buttonText = props.isUserMode ? "📍 Select Waypoints" : "📍 Add Waypoint";
         btn.textContent = buttonText;
-        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
+        btn.className = "py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 not-dark:hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700";
         canvas.style.cursor = "grab";
         console.log("Waypoint mode deactivated");
         const notificationText = props.isUserMode ? "Selection mode disabled" : "Waypoint adding mode disabled";
@@ -2549,13 +2549,13 @@ function drawPath(path) {
                     
                     
                     <button id="addWpBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
                         {{ isUserMode ? '📍 Select Waypoints' : '📍 Add Waypoint' }}
                     </button>
 
                     <button id="clearWpBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
-                        �️ Clear Waypoints
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700">
+                        🗑️ Clear Waypoints
                     </button>
                 </div>
 
@@ -2565,26 +2565,26 @@ function drawPath(path) {
                     <hr class="mb-2 not-dark:border-gray-300 dark:border-gray-600" />
                     
                     <!-- Start Waypoint Display -->
-                    <div class="mb-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border">
+                    <div class="mb-2 p-2 not-dark:bg-green-50 dark:bg-green-900/20 rounded border">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium text-green-800 dark:text-green-200">
+                            <span class="text-sm font-medium not-dark:text-green-800 dark:text-green-200">
                                 🏁 Start: {{ getWaypointName(startWaypointId) || 'Not set' }}
                             </span>
                             <button v-if="startWaypointId" @click="clearStartWaypoint" 
-                                    class="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
+                                    class="text-xs not-dark:text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
                                 Clear
                             </button>
                         </div>
                     </div>
                     
                     <!-- End Waypoint Display -->
-                    <div class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border">
+                    <div class="mb-2 p-2 not-dark:bg-red-50 dark:bg-red-900/20 rounded border">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium text-red-800 dark:text-red-200">
+                            <span class="text-sm font-medium not-dark:text-red-800 dark:text-red-200">
                                 🏆 End: {{ getWaypointName(endWaypointId) || 'Not set' }}
                             </span>
                             <button v-if="endWaypointId" @click="clearEndWaypoint" 
-                                    class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
+                                    class="text-xs not-dark:text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
                                 Clear
                             </button>
                         </div>
@@ -2601,12 +2601,12 @@ function drawPath(path) {
                     
                     
                     <button id="computePathBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         � Compute Path
                     </button>
 
                     <button id="resetViewBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         🔄 Reset View
                     </button>
                 </div>
@@ -2617,22 +2617,22 @@ function drawPath(path) {
 
                     <!-- Wall Editing Controls -->
                     <button id="editModeBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         ✏️ Edit Walls
                     </button>
 
                     <button id="cutWallBtn" type="button" @click="setEditingTool('cut')"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         ✂️ Select & Remove
                     </button>
 
                     <button id="addWallBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         ➕ Add Wall
                     </button>
 
                     <button id="removeWallBtn" type="button"
-                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="py-2.5 px-5 me-2 mb-2 text-sm font-medium not-dark:text-gray-900 focus:outline-none not-dark:bg-white rounded-lg border not-dark:border-gray-200 not-dark:hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 not-dark:focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600  dark:hover:bg-gray-700">
                         ➖ Remove Wall
                     </button>
                 </div>
