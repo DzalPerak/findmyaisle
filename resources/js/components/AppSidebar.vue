@@ -3,10 +3,12 @@ import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, admin } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Settings, Users, BarChart3 } from 'lucide-vue-next';
+import { useUserRoles } from '@/composables/useUserRoles';
+import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -32,18 +34,55 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
+// Get user role information
+const { canAccessAdmin, isAdmin } = useUserRoles();
+
+// Base footer items available to all users
+const baseFooterItems: NavItem[] = [
+    // {
+    //     title: 'Github Repo',
+    //     href: 'https://github.com/DzalPerak/findmyaisle',
+    //     icon: Folder,
+    // },
+    // {
+    //     title: 'Documentation',
+    //     href: 'https://laravel.com/docs/starter-kits#vue',
+    //     icon: BookOpen,
+    // },
 ];
+
+// Admin-only footer items
+const adminFooterItems: NavItem[] = [
+    // {
+    //     title: 'Admin Panel',
+    //     href: '/admin',
+    //     icon: Settings,
+    // }
+];
+
+// Admin-only items (admin role required, not just editor)
+const superAdminItems: NavItem[] = [
+    {
+        title: 'Admin Panel',
+        href: '/admin',
+        icon: Settings,
+    }
+];
+
+// Combine footer items based on user roles
+const footerNavItems = computed((): NavItem[] => {
+    const items = [...baseFooterItems];
+    
+    if (canAccessAdmin.value) {
+        items.unshift(...adminFooterItems);
+    }
+    
+    if (isAdmin.value) {
+        items.splice(-2, 0, ...superAdminItems); // Insert before the last 2 items
+    }
+    
+    return items;
+});
 </script>
 
 <template>
