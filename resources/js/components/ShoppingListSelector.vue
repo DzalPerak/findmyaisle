@@ -62,13 +62,41 @@
       </div>
       
       <!-- Results -->
-      <div v-if="lastSelectionResult" class="text-sm text-gray-600 dark:text-gray-400">
-        <p v-if="lastSelectionResult.waypointIds.length > 0" class="text-green-600 dark:text-green-400">
-          ✅ Auto-selected {{ lastSelectionResult.waypointIds.length }} waypoint(s) based on your shopping list categories
-        </p>
-        <p v-else class="text-yellow-600 dark:text-yellow-400">
-          ⚠️ No waypoints found matching your shopping list categories
-        </p>
+      <div v-if="lastSelectionResult" class="text-sm space-y-2">
+        <div v-if="lastSelectionResult.waypointIds.length > 0">
+          <p class="text-green-600 dark:text-green-400">
+            ✅ Auto-selected {{ lastSelectionResult.waypointIds.length }} waypoint(s) based on your shopping list categories
+          </p>
+          
+          <!-- Show matched items -->
+          <div v-if="lastSelectionResult.matchedItems && lastSelectionResult.matchedItems.length > 0" class="mt-1">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              Matched items ({{ lastSelectionResult.matchedItems.length }}):
+              <span class="text-green-600 dark:text-green-400">
+                {{ lastSelectionResult.matchedItems.map(item => `${item.name}${item.qty > 1 ? ` (×${item.qty})` : ''}`).join(', ') }}
+              </span>
+            </p>
+          </div>
+        </div>
+        
+        <!-- Show unmatched items -->
+        <div v-if="lastSelectionResult.unmatchedItems && lastSelectionResult.unmatchedItems.length > 0">
+          <p class="text-amber-600 dark:text-amber-400">
+            ⚠️ No waypoints found for {{ lastSelectionResult.unmatchedItems.length }} item(s):
+            <span class="font-medium">
+              {{ lastSelectionResult.unmatchedItems.map(item => `${item.name}${item.qty > 1 ? ` (×${item.qty})` : ''}`).join(', ') }}
+            </span>
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            These items don't have assigned waypoint categories in this store.
+          </p>
+        </div>
+        
+        <div v-if="lastSelectionResult.waypointIds.length === 0 && (!lastSelectionResult.unmatchedItems || lastSelectionResult.unmatchedItems.length === 0)">
+          <p class="text-yellow-600 dark:text-yellow-400">
+            ⚠️ No waypoints found matching your shopping list categories
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -110,7 +138,13 @@ const shoppingLists = ref<ShoppingList[]>([])
 const selectedListId = ref<string>('')
 const loading = ref(false)
 const autoSelecting = ref(false)
-const lastSelectionResult = ref<{ waypointIds: number[] } | null>(null)
+interface SelectionResult {
+  waypointIds: number[]
+  matchedItems?: Array<{ name: string; category: string; qty: number }>
+  unmatchedItems?: Array<{ name: string; category: string; qty: number }>
+}
+
+const lastSelectionResult = ref<SelectionResult | null>(null)
 
 const selectedList = computed(() => {
   if (!selectedListId.value) return null
@@ -152,7 +186,9 @@ async function autoSelectWaypoints() {
     })
     
     lastSelectionResult.value = {
-      waypointIds: response.data.waypoint_ids
+      waypointIds: response.data.waypoint_ids,
+      matchedItems: response.data.matched_items || [],
+      unmatchedItems: response.data.unmatched_items || []
     }
     
     // Emit the waypoint IDs to parent component for selection
@@ -160,7 +196,11 @@ async function autoSelectWaypoints() {
     
   } catch (error) {
     console.error('Error auto-selecting waypoints:', error)
-    lastSelectionResult.value = { waypointIds: [] }
+    lastSelectionResult.value = { 
+      waypointIds: [], 
+      matchedItems: [], 
+      unmatchedItems: [] 
+    }
   } finally {
     autoSelecting.value = false
   }

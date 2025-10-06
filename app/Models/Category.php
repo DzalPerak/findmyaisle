@@ -21,6 +21,9 @@ class Category extends Model
 
     public function waypoints(): BelongsToMany
     {
-        return $this->belongsToMany(Waypoint::class, 'waypoint_categories');
+        return $this->belongsToMany(Waypoint::class, 'waypoint_categories')
+                    ->wherePivot('active', true)
+                    ->withPivot('active')
+                    ->withTimestamps();
     }
 }
